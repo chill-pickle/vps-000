@@ -26,6 +26,12 @@ graph TB
             XWPG[(PostgreSQL)]
         end
 
+        subgraph Docmost ["Docmost Stack"]
+            DM[Docmost<br/>:8088 → :3000]
+            DMPG[(PostgreSQL)]
+            DMR[(Redis)]
+        end
+
         subgraph AppFlowy ["AppFlowy Cloud Stack"]
             AFNX[nginx<br/>:8087 → :80]
             AFC[appflowy_cloud]
@@ -47,12 +53,15 @@ graph TB
     EP443 -->|wiki.tcom| WJ
     EP443 -->|xwiki.tcom| XW
     EP443 -->|appflowy.tcom| AFNX
+    EP443 -->|docmost.tcom| DM
     EP443 -->|traefik.tcom| Traefik
 
     ACME -.->|DNS-01 challenge| CF
 
     WJ --- WJPG
     XW --- XWPG
+    DM --- DMPG
+    DM --- DMR
     AFNX --- AFC
     AFNX --- AFGT
     AFNX --- AFWEB
@@ -91,6 +100,7 @@ sequenceDiagram
 | Wiki.js | https://wiki.tcom.chillpickle.org | 8086 | `~/wikijs/` |
 | XWiki | https://xwiki.tcom.chillpickle.org | 8085 | `~/xwiki/` |
 | AppFlowy Cloud | https://appflowy.tcom.chillpickle.org | 8087 | `~/appflowy/` |
+| Docmost | https://docmost.tcom.chillpickle.org | 8088 | `~/docmost/` |
 | Traefik Dashboard | https://traefik.tcom.chillpickle.org | — | `~/traefik/` |
 
 ## Traefik Configuration
@@ -177,7 +187,7 @@ DNS-only (grey cloud) — Traefik handles TLS termination, not Cloudflare.
 | 443 | Traefik HTTPS |
 | 40831 | aaPanel admin |
 
-Direct service ports (8085/8086/8087/8443) are closed. All traffic goes through Traefik.
+Direct service ports (8085/8086/8087/8088/8443) are closed. All traffic goes through Traefik.
 
 ## Server Resources
 
@@ -195,16 +205,19 @@ graph LR
         WN[wikijs_wikijs-net]
         XN[xwiki_xwiki-net]
         AN[appflowy_default]
+        DN[docmost_default]
     end
 
     T[traefik] --- TN
     WJ[wikijs + postgres] --- WN
     XW[xwiki + postgres] --- XN
     AF[appflowy<br/>10 containers] --- AN
+    DMS[docmost + postgres + redis] --- DN
 
     T -.->|host.docker.internal| WJ
     T -.->|host.docker.internal| XW
     T -.->|host.docker.internal| AF
+    T -.->|host.docker.internal| DMS
 ```
 
 Each stack has its own isolated Docker network. Traefik reaches services through `host.docker.internal` (mapped to the host's network via `extra_hosts`), not by joining their networks.
@@ -225,6 +238,7 @@ cd ~/traefik && docker compose logs -f traefik
 cd ~/wikijs && docker compose restart
 cd ~/xwiki && docker compose restart
 cd ~/appflowy && docker compose down && docker compose up -d
+cd ~/docmost && docker compose restart
 
 # Check resources
 free -h && docker stats --no-stream
