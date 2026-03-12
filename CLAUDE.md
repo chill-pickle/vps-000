@@ -60,6 +60,7 @@ ssh chillpickle
 | XWiki | https://xwiki.tcom.chillpickle.org | `~/xwiki/` | 8085 |
 | AppFlowy Cloud | https://appflowy.tcom.chillpickle.org | `~/appflowy/` | 8087 |
 | Docmost | https://docmost.tcom.chillpickle.org | `~/docmost/` | 8088 |
+| BookStack | https://bookstack.tcom.chillpickle.org | `~/bookstack/` | 8089 |
 
 ### AppFlowy Cloud — Known Issues
 
