@@ -1,0 +1,18 @@
+http:
+  routers:
+    docmost:
+      rule: "Host(`docmost.tcom.chillpickle.org`)"
+      entryPoints: [websecure]
+      service: docmost
+
+    traefik-dashboard:
+      rule: "Host(`traefik.tcom.chillpickle.org`)"
+      entryPoints: [websecure]
+      service: api@internal
+      middlewares: [dashboard-auth]
+
+  services:
+    docmost:
+      loadBalancer:
+        servers:
+          - url: "http://host.docker.internal:8088"

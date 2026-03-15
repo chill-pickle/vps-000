@@ -4,7 +4,43 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-This is an ops/infrastructure reference repo for the **chillpickle** VPS. There is no application code — tasks here involve remote server administration via SSH. See `docs/infrastructure.md` for full architecture docs with Mermaid diagrams.
+Infrastructure-as-code repo for the **chillpickle** VPS. Service configs, secrets (sops/age-encrypted), and CI/CD live here. See `docs/infrastructure.md` for architecture docs with Mermaid diagrams.
+
+## Repo Structure
+
+```
+chillpickle/
+├── CLAUDE.md
+├── .gitignore
+├── .sops.yaml
+├── services/
+│   ├── traefik/
+│   │   ├── docker-compose.yml
+│   │   ├── .env.enc
+│   │   ├── traefik.yml
+│   │   └── dynamic/
+│   │       ├── routes.yml
+│   │       └── middlewares.yml
+│   └── docmost/
+│       ├── docker-compose.yml
+│       └── .env.enc
+├── scripts/
+│   └── deploy.sh
+├── docs/
+│   ├── infrastructure.md
+│   ├── docmost.md
+│   └── docmost-tcom-vn.md
+└── .github/
+    └── workflows/
+        └── deploy.yml
+```
+
+## Deployment
+
+- **CI/CD**: GitHub Actions (`.github/workflows/deploy.yml`) — auto-deploys on push to `main` when `services/` changes.
+- **Secrets**: Encrypted with sops/age (`.env.enc` files). Decrypted at deploy time.
+- **Manual deploy**: `./scripts/deploy.sh <traefik|docmost>`
+- **GitHub Secrets needed**: `SSH_PRIVATE_KEY`, `SSH_HOST`, `SSH_USER`, `SOPS_AGE_KEY`
 
 ## Common Operations
 
@@ -45,29 +81,18 @@ ssh chillpickle
 
 ### Reverse Proxy — Traefik v3.3
 
-- **Config**: `~/traefik/` (file-based, no Docker labels/socket)
-- **Ports**: 80 (→ 301 HTTPS), 443
+- **Config**: `services/traefik/` (file-based, no Docker labels/socket)
+- **Ports**: 80 (-> 301 HTTPS), 443
 - **TLS**: Wildcard cert `*.tcom.chillpickle.org` via Let's Encrypt DNS-01 + Cloudflare
-- **Cloudflare token**: stored in `~/traefik/.env` (has IP restriction — VPS only)
+- **Cloudflare token**: stored in `services/traefik/.env.enc` (sops-encrypted, IP-restricted to VPS)
 - **Dashboard**: https://traefik.tcom.chillpickle.org (basic auth: `admin` / `chillpickle2026`)
-- Adding new service: edit `~/traefik/dynamic/routes.yml`, Traefik hot-reloads
+- Adding new service: edit `services/traefik/dynamic/routes.yml`, Traefik hot-reloads
 
 ### Services
 
 | Service | URL | Compose Dir | Internal Port |
 |---------|-----|-------------|---------------|
-| Wiki.js | https://wiki.tcom.chillpickle.org | `~/wikijs/` | 8086 |
-| XWiki | https://xwiki.tcom.chillpickle.org | `~/xwiki/` | 8085 |
-| AppFlowy Cloud | https://appflowy.tcom.chillpickle.org | `~/appflowy/` | 8087 |
-| Docmost | https://docmost.tcom.chillpickle.org | `~/docmost/` | 8088 |
-| BookStack | https://bookstack.tcom.chillpickle.org | `~/bookstack/` | 8089 |
-
-### AppFlowy Cloud — Known Issues
-
-- **SMTP not configured**: Magic link login fails (SMTP creds are placeholder). Password login works via nginx redirect (`/login` → `action=enterPassword`). Needs a real Gmail app password or SMTP provider.
-- **AI container disabled**: Requires `OPENAI_API_KEY` or `AZURE_OPENAI_API_KEY`. Stopped to avoid restart loops. Enable with `cd ~/appflowy && docker compose up -d ai`.
-- **Custom nginx.conf**: `~/appflowy/nginx/nginx.conf` has a custom `/login` location block that redirects to password login flow.
-- **Default admin**: `admin@example.com` / `password` — change after first login.
+| Docmost | https://docmost.tcom.chillpickle.org | `services/docmost/` | 8088 |
 
 ### DNS (Cloudflare)
 
@@ -77,7 +102,7 @@ ssh chillpickle
 
 ### Firewall (UFW)
 
-Open ports: 22 (SSH), 80/443 (Traefik), 40831 (aaPanel admin). Direct service ports (8085/8086/8087) are closed.
+Open ports: 22 (SSH), 80/443 (Traefik), 40831 (aaPanel admin). Direct service ports (8088) are closed.
 
 ### aaPanel
 
