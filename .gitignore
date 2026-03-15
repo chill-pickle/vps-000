@@ -1,0 +1,9 @@
+# Unencrypted secrets (only .env.enc is committed)
+**/.env
+!**/.env.enc
+
+# Traefik auto-generated certs
+services/traefik/acme/
+
+# Docker data volumes
+**/data/

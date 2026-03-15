@@ -1,0 +1,126 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+    paths: ['services/**']
+  workflow_dispatch:
+    inputs:
+      service:
+        description: 'Service to deploy (traefik/docmost/all)'
+        required: true
+        default: 'all'
+
+jobs:
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      traefik: ${{ steps.changes.outputs.traefik }}
+      docmost: ${{ steps.changes.outputs.docmost }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: changes
+        with:
+          filters: |
+            traefik:
+              - 'services/traefik/**'
+            docmost:
+              - 'services/docmost/**'
+
+  deploy-traefik:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.traefik == 'true' || github.event.inputs.service == 'traefik' || github.event.inputs.service == 'all'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install sops + age
+        run: |
+          curl -LO https://github.com/getsops/sops/releases/download/v3.9.4/sops-v3.9.4.linux.amd64
+          chmod +x sops-v3.9.4.linux.amd64 && sudo mv sops-v3.9.4.linux.amd64 /usr/local/bin/sops
+          sudo apt-get install -y age
+      - name: Decrypt secrets
+        env:
+          SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
+        run: |
+          sops -d --input-type dotenv --output-type dotenv services/traefik/.env.enc > services/traefik/.env
+      - name: Backup current config
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cp -r ~/traefik ~/traefik.bak
+      - name: Rsync configs to server
+        run: |
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > /tmp/deploy_key && chmod 600 /tmp/deploy_key
+          rsync -avz --exclude='acme/' -e "ssh -i /tmp/deploy_key -o StrictHostKeyChecking=no" \
+            services/traefik/ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/traefik/
+          rm /tmp/deploy_key
+      - name: Restart Traefik + verify
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd ~/traefik && docker compose up -d --force-recreate
+            sleep 5
+            if ! docker compose ps --format json | grep -q '"running"'; then
+              echo "DEPLOY FAILED — rolling back"
+              rm -rf ~/traefik && mv ~/traefik.bak ~/traefik
+              cd ~/traefik && docker compose up -d --force-recreate
+              exit 1
+            fi
+            rm -rf ~/traefik.bak
+
+  deploy-docmost:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.docmost == 'true' || github.event.inputs.service == 'docmost' || github.event.inputs.service == 'all'
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install sops + age
+        run: |
+          curl -LO https://github.com/getsops/sops/releases/download/v3.9.4/sops-v3.9.4.linux.amd64
+          chmod +x sops-v3.9.4.linux.amd64 && sudo mv sops-v3.9.4.linux.amd64 /usr/local/bin/sops
+          sudo apt-get install -y age
+      - name: Decrypt secrets
+        env:
+          SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
+        run: |
+          sops -d --input-type dotenv --output-type dotenv services/docmost/.env.enc > services/docmost/.env
+      - name: Backup current config
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: cp -r ~/docmost ~/docmost.bak
+      - name: Rsync configs to server
+        run: |
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > /tmp/deploy_key && chmod 600 /tmp/deploy_key
+          rsync -avz --exclude='data/' -e "ssh -i /tmp/deploy_key -o StrictHostKeyChecking=no" \
+            services/docmost/ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/docmost/
+          rm /tmp/deploy_key
+      - name: Restart Docmost + verify
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd ~/docmost
+            docker compose pull
+            docker compose up -d
+            sleep 10
+            if ! docker compose ps --format json | grep -q '"running"'; then
+              echo "DEPLOY FAILED — rolling back"
+              rm -rf ~/docmost && mv ~/docmost.bak ~/docmost
+              cd ~/docmost && docker compose up -d
+              exit 1
+            fi
+            rm -rf ~/docmost.bak

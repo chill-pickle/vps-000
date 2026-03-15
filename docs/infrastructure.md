@@ -16,38 +16,10 @@ graph TB
             ACME[Let's Encrypt<br/>Wildcard Cert]
         end
 
-        subgraph WikiJS ["Wiki.js Stack"]
-            WJ[Wiki.js<br/>:8086 → :3000]
-            WJPG[(PostgreSQL)]
-        end
-
-        subgraph XWiki ["XWiki Stack"]
-            XW[XWiki<br/>:8085 → :8080]
-            XWPG[(PostgreSQL)]
-        end
-
-        subgraph BookStack ["BookStack Stack"]
-            BS[BookStack<br/>:8089 → :80]
-            BSDB[(MariaDB)]
-        end
-
         subgraph Docmost ["Docmost Stack"]
             DM[Docmost<br/>:8088 → :3000]
             DMPG[(PostgreSQL)]
             DMR[(Redis)]
-        end
-
-        subgraph AppFlowy ["AppFlowy Cloud Stack"]
-            AFNX[nginx<br/>:8087 → :80]
-            AFC[appflowy_cloud]
-            AFGT[GoTrue Auth]
-            AFPG[(PostgreSQL + pgvector)]
-            AFR[(Redis)]
-            AFM[(MinIO S3)]
-            AFW[appflowy_worker]
-            AFS[appflowy_search]
-            AFWEB[appflowy_web]
-            AFADM[admin_frontend]
         end
     end
 
@@ -55,29 +27,13 @@ graph TB
     CF -->|A record| EP80
     CF -->|A record| EP443
     EP80 -->|301 redirect| EP443
-    EP443 -->|wiki.tcom| WJ
-    EP443 -->|xwiki.tcom| XW
-    EP443 -->|appflowy.tcom| AFNX
-    EP443 -->|bookstack.tcom| BS
     EP443 -->|docmost.tcom| DM
     EP443 -->|traefik.tcom| Traefik
 
     ACME -.->|DNS-01 challenge| CF
 
-    WJ --- WJPG
-    XW --- XWPG
     DM --- DMPG
     DM --- DMR
-    BS --- BSDB
-    AFNX --- AFC
-    AFNX --- AFGT
-    AFNX --- AFWEB
-    AFNX --- AFADM
-    AFC --- AFPG
-    AFC --- AFR
-    AFC --- AFM
-    AFW --- AFPG
-    AFS --- AFPG
 ```
 
 ## Request Flow
@@ -89,13 +45,13 @@ sequenceDiagram
     participant T as Traefik :443
     participant S as Backend Service
 
-    C->>CF: wiki.tcom.chillpickle.org
+    C->>CF: docmost.tcom.chillpickle.org
     CF-->>C: <VPS_IP>
 
-    C->>T: HTTPS request (SNI: wiki.tcom.*)
+    C->>T: HTTPS request (SNI: docmost.tcom.*)
     Note over T: TLS termination<br/>Wildcard cert *.tcom.chillpickle.org
     T->>T: Match Host() rule → route to service
-    T->>S: HTTP proxy to host.docker.internal:port
+    T->>S: HTTP proxy to host.docker.internal:8088
     S-->>T: Response
     T-->>C: HTTPS response
 ```
@@ -104,12 +60,8 @@ sequenceDiagram
 
 | Service | URL | Internal Port | Docker Compose |
 |---------|-----|---------------|----------------|
-| Wiki.js | https://wiki.tcom.chillpickle.org | 8086 | `~/wikijs/` |
-| XWiki | https://xwiki.tcom.chillpickle.org | 8085 | `~/xwiki/` |
-| AppFlowy Cloud | https://appflowy.tcom.chillpickle.org | 8087 | `~/appflowy/` |
-| Docmost | https://docmost.tcom.chillpickle.org | 8088 | `~/docmost/` |
-| BookStack | https://bookstack.tcom.chillpickle.org | 8089 | `~/bookstack/` |
-| Traefik Dashboard | https://traefik.tcom.chillpickle.org | — | `~/traefik/` |
+| Docmost | https://docmost.tcom.chillpickle.org | 8088 | `services/docmost/` |
+| Traefik Dashboard | https://traefik.tcom.chillpickle.org | -- | `services/traefik/` |
 
 ## Traefik Configuration
 
@@ -133,23 +85,23 @@ graph LR
     CR --> R
 ```
 
-### Key files (on server)
+### Key files (in repo)
 
 ```
-~/traefik/
+services/traefik/
 ├── docker-compose.yml          # Traefik container definition
-├── .env                        # CF_DNS_API_TOKEN (chmod 600)
+├── .env.enc                    # CF_DNS_API_TOKEN (sops-encrypted)
 ├── traefik.yml                 # Static config: entrypoints, ACME, providers
-├── dynamic/
-│   ├── routes.yml              # Routers + services (host rules → backends)
-│   └── middlewares.yml         # Dashboard basic auth
-└── acme/
-    └── acme.json               # Let's Encrypt cert storage (chmod 600)
+└── dynamic/
+    ├── routes.yml              # Routers + services (host rules → backends)
+    └── middlewares.yml         # Dashboard basic auth
 ```
+
+On the server, `acme/acme.json` (Let's Encrypt cert storage, chmod 600) is generated at runtime and not tracked in the repo.
 
 ### Adding a new service
 
-1. Add a router + service block to `~/traefik/dynamic/routes.yml`:
+1. Add a router + service block to `services/traefik/dynamic/routes.yml`:
    ```yaml
    http:
      routers:
@@ -172,7 +124,7 @@ graph LR
 - **Issuer**: Let's Encrypt (production)
 - **Challenge**: DNS-01 via Cloudflare API
 - **Auto-renewal**: Traefik renews ~30 days before expiry
-- **Token**: Stored in `~/traefik/.env` — has IP restriction (VPS only)
+- **Token**: Stored in `services/traefik/.env.enc` (sops-encrypted) — has IP restriction (VPS only)
 
 ## DNS (Cloudflare)
 
@@ -195,7 +147,7 @@ DNS-only (grey cloud) — Traefik handles TLS termination, not Cloudflare.
 | 443 | Traefik HTTPS |
 | 40831 | aaPanel admin |
 
-Direct service ports (8085/8086/8087/8088/8089/8443) are closed. All traffic goes through Traefik.
+Direct service ports (8088) are closed. All traffic goes through Traefik.
 
 ## Server Resources
 
@@ -210,25 +162,13 @@ Direct service ports (8085/8086/8087/8088/8089/8443) are closed. All traffic goe
 graph LR
     subgraph Networks
         TN[traefik_default]
-        WN[wikijs_wikijs-net]
-        XN[xwiki_xwiki-net]
-        AN[appflowy_default]
         DN[docmost_default]
-        BN[bookstack_default]
     end
 
     T[traefik] --- TN
-    WJ[wikijs + postgres] --- WN
-    XW[xwiki + postgres] --- XN
-    AF[appflowy<br/>10 containers] --- AN
     DMS[docmost + postgres + redis] --- DN
-    BSS[bookstack + mariadb] --- BN
 
-    T -.->|host.docker.internal| WJ
-    T -.->|host.docker.internal| XW
-    T -.->|host.docker.internal| AF
     T -.->|host.docker.internal| DMS
-    T -.->|host.docker.internal| BSS
 ```
 
 Each stack has its own isolated Docker network. Traefik reaches services through `host.docker.internal` (mapped to the host's network via `extra_hosts`), not by joining their networks.
@@ -246,12 +186,13 @@ docker ps --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}'
 cd ~/traefik && docker compose logs -f traefik
 
 # Restart a stack
-cd ~/wikijs && docker compose restart
-cd ~/xwiki && docker compose restart
-cd ~/appflowy && docker compose down && docker compose up -d
+cd ~/traefik && docker compose restart
 cd ~/docmost && docker compose restart
-cd ~/bookstack && docker compose restart
 
 # Check resources
 free -h && docker stats --no-stream
+
+# Manual deploy from local machine
+./scripts/deploy.sh traefik
+./scripts/deploy.sh docmost
 ```
