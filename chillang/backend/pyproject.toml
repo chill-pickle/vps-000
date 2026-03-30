@@ -1,0 +1,14 @@
+[project]
+name = "backend"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.13"
+dependencies = [
+    "aiosqlite>=0.22.1",
+    "alembic>=1.18.4",
+    "fastapi[standard]>=0.135.2",
+    "httpx>=0.28.1",
+    "openai>=2.30.0",
+    "pydantic-settings>=2.13.1",
+    "sqlalchemy[asyncio]>=2.0.48",
+]

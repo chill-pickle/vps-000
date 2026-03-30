@@ -3,71 +3,107 @@ name: Deploy
 on:
   push:
     branches: [main]
-    paths: ['services/**']
+    paths:
+      - "traefik/**"
+      - "outline/**"
+      - "chillang/backend/**"
+      - "chillang/docker-compose.yml"
+      - "chillang/.env.enc"
+      - "chillang/extension/**"
   workflow_dispatch:
     inputs:
       service:
-        description: 'Service to deploy (traefik/outline/all)'
+        description: "Service to deploy"
         required: true
-        default: 'all'
+        type: choice
+        options:
+          - all
+          - traefik
+          - outline
+          - chillang-backend
+          - chillang-extension
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  detect-changes:
+  # -----------------------------------------------------------
+  # Detect which parts of the codebase changed
+  # -----------------------------------------------------------
+  changes:
+    name: Detect changes
     runs-on: ubuntu-latest
     outputs:
-      traefik: ${{ steps.changes.outputs.traefik }}
-
-      outline: ${{ steps.changes.outputs.outline }}
+      traefik: ${{ steps.filter.outputs.traefik }}
+      outline: ${{ steps.filter.outputs.outline }}
+      chillang-backend: ${{ steps.filter.outputs.chillang-backend }}
+      chillang-extension: ${{ steps.filter.outputs.chillang-extension }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
-        id: changes
+        id: filter
         with:
           filters: |
             traefik:
-              - 'services/traefik/**'
-
+              - "traefik/**"
             outline:
-              - 'services/outline/**'
+              - "outline/**"
+            chillang-backend:
+              - "chillang/backend/**"
+              - "chillang/docker-compose.yml"
+              - "chillang/.env.enc"
+            chillang-extension:
+              - "chillang/extension/**"
 
+  # -----------------------------------------------------------
+  # Deploy Traefik reverse proxy
+  # -----------------------------------------------------------
   deploy-traefik:
-    needs: detect-changes
-    if: needs.detect-changes.outputs.traefik == 'true' || github.event.inputs.service == 'traefik' || github.event.inputs.service == 'all'
+    name: Deploy Traefik
+    needs: changes
+    if: >
+      needs.changes.outputs.traefik == 'true' ||
+      github.event.inputs.service == 'traefik' ||
+      github.event.inputs.service == 'all'
     runs-on: ubuntu-latest
     environment: production
     steps:
       - uses: actions/checkout@v4
-      - name: Install sops + age
+
+      - name: Install sops
         run: |
           curl -LO https://github.com/getsops/sops/releases/download/v3.9.4/sops-v3.9.4.linux.amd64
           chmod +x sops-v3.9.4.linux.amd64 && sudo mv sops-v3.9.4.linux.amd64 /usr/local/bin/sops
           sudo apt-get install -y age
+
       - name: Decrypt secrets
         env:
           SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
+        run: sops -d --input-type dotenv --output-type dotenv traefik/.env.enc > traefik/.env
+
+      - uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Add VPS to known_hosts
         run: |
-          sops -d --input-type dotenv --output-type dotenv services/traefik/.env.enc > services/traefik/.env
+          mkdir -p ~/.ssh
+          ssh-keyscan -H "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts
+
       - name: Backup current config
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            cp -r ~/traefik ~/traefik.bak
-      - name: Rsync configs to server
+        run: ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "cp -r ~/traefik ~/traefik.bak 2>/dev/null || true"
+
+      - name: Rsync to server
         run: |
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > /tmp/deploy_key && chmod 600 /tmp/deploy_key
-          rsync -avz --exclude='acme/' -e "ssh -i /tmp/deploy_key -o StrictHostKeyChecking=no" \
-            services/traefik/ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/traefik/
-          rm /tmp/deploy_key
-      - name: Restart Traefik + verify
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
+          rsync -avz --delete \
+            --exclude='acme/' \
+            --exclude='.env.enc' \
+            traefik/ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/traefik/
+
+      - name: Restart and verify
+        run: |
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} bash -s << 'ENDSSH'
             cd ~/traefik && docker compose up -d --force-recreate
             sleep 5
             if ! docker compose ps --format json | grep -q '"running"'; then
@@ -77,44 +113,56 @@ jobs:
               exit 1
             fi
             rm -rf ~/traefik.bak
+          ENDSSH
 
+  # -----------------------------------------------------------
+  # Deploy Outline wiki
+  # -----------------------------------------------------------
   deploy-outline:
-    needs: detect-changes
-    if: needs.detect-changes.outputs.outline == 'true' || github.event.inputs.service == 'outline' || github.event.inputs.service == 'all'
+    name: Deploy Outline
+    needs: changes
+    if: >
+      needs.changes.outputs.outline == 'true' ||
+      github.event.inputs.service == 'outline' ||
+      github.event.inputs.service == 'all'
     runs-on: ubuntu-latest
     environment: production
     steps:
       - uses: actions/checkout@v4
-      - name: Install sops + age
+
+      - name: Install sops
         run: |
           curl -LO https://github.com/getsops/sops/releases/download/v3.9.4/sops-v3.9.4.linux.amd64
           chmod +x sops-v3.9.4.linux.amd64 && sudo mv sops-v3.9.4.linux.amd64 /usr/local/bin/sops
           sudo apt-get install -y age
+
       - name: Decrypt secrets
         env:
           SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
+        run: sops -d --input-type dotenv --output-type dotenv outline/.env.enc > outline/.env
+
+      - uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Add VPS to known_hosts
         run: |
-          sops -d --input-type dotenv --output-type dotenv services/outline/.env.enc > services/outline/.env
+          mkdir -p ~/.ssh
+          ssh-keyscan -H "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts
+
       - name: Backup current config
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: cp -r ~/outline ~/outline.bak 2>/dev/null || true
-      - name: Rsync configs to server
+        run: ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "cp -r ~/outline ~/outline.bak 2>/dev/null || true"
+
+      - name: Rsync to server
         run: |
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > /tmp/deploy_key && chmod 600 /tmp/deploy_key
-          rsync -avz --exclude='data/' -e "ssh -i /tmp/deploy_key -o StrictHostKeyChecking=no" \
-            services/outline/ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/outline/
-          rm /tmp/deploy_key
-      - name: Restart Outline + verify
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
+          rsync -avz --delete \
+            --exclude='data/' \
+            --exclude='.env.enc' \
+            outline/ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/outline/
+
+      - name: Restart and verify
+        run: |
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} bash -s << 'ENDSSH'
             cd ~/outline
             docker compose pull
             docker compose up -d
@@ -126,3 +174,139 @@ jobs:
               exit 1
             fi
             rm -rf ~/outline.bak
+          ENDSSH
+
+  # -----------------------------------------------------------
+  # Build + push chillang Docker image, deploy to VPS
+  # -----------------------------------------------------------
+  deploy-chillang-backend:
+    name: Deploy ChilLang backend
+    needs: changes
+    if: >
+      needs.changes.outputs.chillang-backend == 'true' ||
+      github.event.inputs.service == 'chillang-backend' ||
+      github.event.inputs.service == 'all'
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://api.chillang.chillpickle.org
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: chillang/backend
+          push: true
+          tags: |
+            ghcr.io/chill-pickle/chillang-api:latest
+            ghcr.io/chill-pickle/chillang-api:${{ github.sha }}
+
+      - name: Install sops
+        run: |
+          curl -LO https://github.com/getsops/sops/releases/download/v3.9.4/sops-v3.9.4.linux.amd64
+          chmod +x sops-v3.9.4.linux.amd64 && sudo mv sops-v3.9.4.linux.amd64 /usr/local/bin/sops
+          sudo apt-get install -y age
+
+      - name: Decrypt secrets
+        env:
+          SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
+        run: sops -d --input-type dotenv --output-type dotenv chillang/.env.enc > chillang/.env
+
+      - uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Add VPS to known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Backup current config
+        run: ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "cp -r ~/chillang ~/chillang.bak 2>/dev/null || true"
+
+      - name: Deploy compose + env to server
+        run: |
+          rsync -avz \
+            chillang/docker-compose.yml \
+            chillang/.env \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/chillang/
+
+      - name: Pull image and restart
+        run: |
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} bash -s << 'ENDSSH'
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+            cd ~/chillang
+            docker compose pull
+            docker compose up -d
+          ENDSSH
+
+      - name: Health check
+        run: |
+          echo "Waiting for service to become ready..."
+          sleep 10
+          for i in 1 2 3 4 5; do
+            STATUS=$(ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+              "curl -s -o /dev/null -w '%{http_code}' http://localhost:8091/health" 2>/dev/null || echo "000")
+            echo "Attempt $i — HTTP $STATUS"
+            if [ "$STATUS" = "200" ]; then
+              echo "Health check passed."
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "Health check failed — rolling back"
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} bash -s << 'ENDSSH'
+            rm -rf ~/chillang && mv ~/chillang.bak ~/chillang
+            cd ~/chillang && docker compose up -d
+          ENDSSH
+          exit 1
+
+      - name: Cleanup backup
+        run: ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "rm -rf ~/chillang.bak"
+
+  # -----------------------------------------------------------
+  # Build Chrome extension (artifact only, no server deploy)
+  # -----------------------------------------------------------
+  build-chillang-extension:
+    name: Build ChilLang extension
+    needs: changes
+    if: >
+      needs.changes.outputs.chillang-extension == 'true' ||
+      github.event.inputs.service == 'chillang-extension' ||
+      github.event.inputs.service == 'all'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: chillang/extension/package-lock.json
+
+      - name: Install dependencies
+        working-directory: chillang/extension
+        run: npm ci
+
+      - name: Build extension
+        working-directory: chillang/extension
+        run: npm run build
+
+      - name: Upload dist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: chillang-extension-${{ github.sha }}
+          path: chillang/extension/dist/
+          retention-days: 30
+          if-no-files-found: error

@@ -1,0 +1,15 @@
+{
+  "name": "chillang",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build && BUILD_TARGET=content vite build",
+    "dev": "vite build --watch"
+  },
+  "dependencies": {
+    "@sveltejs/vite-plugin-svelte": "^7.0.0",
+    "svelte": "^5.55.0",
+    "vite": "^8.0.3"
+  }
+}

@@ -88,7 +88,7 @@ graph LR
 ### Key files (in repo)
 
 ```
-services/traefik/
+traefik/
 ├── docker-compose.yml          # Traefik container definition
 ├── .env.enc                    # CF_DNS_API_TOKEN (sops-encrypted)
 ├── traefik.yml                 # Static config: entrypoints, ACME, providers
@@ -101,7 +101,7 @@ On the server, `acme/acme.json` (Let's Encrypt cert storage, chmod 600) is gener
 
 ### Adding a new service
 
-1. Add a router + service block to `services/traefik/dynamic/routes.yml`:
+1. Add a router + service block to `traefik/dynamic/routes.yml`:
    ```yaml
    http:
      routers:
