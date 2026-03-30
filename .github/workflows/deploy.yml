@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       service:
-        description: 'Service to deploy (traefik/docmost/all)'
+        description: 'Service to deploy (traefik/outline/all)'
         required: true
         default: 'all'
 
@@ -16,7 +16,8 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       traefik: ${{ steps.changes.outputs.traefik }}
-      docmost: ${{ steps.changes.outputs.docmost }}
+
+      outline: ${{ steps.changes.outputs.outline }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -25,8 +26,9 @@ jobs:
           filters: |
             traefik:
               - 'services/traefik/**'
-            docmost:
-              - 'services/docmost/**'
+
+            outline:
+              - 'services/outline/**'
 
   deploy-traefik:
     needs: detect-changes
@@ -76,9 +78,9 @@ jobs:
             fi
             rm -rf ~/traefik.bak
 
-  deploy-docmost:
+  deploy-outline:
     needs: detect-changes
-    if: needs.detect-changes.outputs.docmost == 'true' || github.event.inputs.service == 'docmost' || github.event.inputs.service == 'all'
+    if: needs.detect-changes.outputs.outline == 'true' || github.event.inputs.service == 'outline' || github.event.inputs.service == 'all'
     runs-on: ubuntu-latest
     environment: production
     steps:
@@ -92,35 +94,35 @@ jobs:
         env:
           SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
         run: |
-          sops -d --input-type dotenv --output-type dotenv services/docmost/.env.enc > services/docmost/.env
+          sops -d --input-type dotenv --output-type dotenv services/outline/.env.enc > services/outline/.env
       - name: Backup current config
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: cp -r ~/docmost ~/docmost.bak
+          script: cp -r ~/outline ~/outline.bak 2>/dev/null || true
       - name: Rsync configs to server
         run: |
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > /tmp/deploy_key && chmod 600 /tmp/deploy_key
           rsync -avz --exclude='data/' -e "ssh -i /tmp/deploy_key -o StrictHostKeyChecking=no" \
-            services/docmost/ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/docmost/
+            services/outline/ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/outline/
           rm /tmp/deploy_key
-      - name: Restart Docmost + verify
+      - name: Restart Outline + verify
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            cd ~/docmost
+            cd ~/outline
             docker compose pull
             docker compose up -d
-            sleep 10
+            sleep 15
             if ! docker compose ps --format json | grep -q '"running"'; then
               echo "DEPLOY FAILED — rolling back"
-              rm -rf ~/docmost && mv ~/docmost.bak ~/docmost
-              cd ~/docmost && docker compose up -d
+              rm -rf ~/outline && mv ~/outline.bak ~/outline
+              cd ~/outline && docker compose up -d
               exit 1
             fi
-            rm -rf ~/docmost.bak
+            rm -rf ~/outline.bak

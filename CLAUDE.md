@@ -21,15 +21,14 @@ chillpickle/
 │   │   └── dynamic/
 │   │       ├── routes.yml
 │   │       └── middlewares.yml
-│   └── docmost/
+│   └── outline/
 │       ├── docker-compose.yml
 │       └── .env.enc
 ├── scripts/
 │   └── deploy.sh
 ├── docs/
 │   ├── infrastructure.md
-│   ├── docmost.md
-│   └── docmost-tcom-vn.md
+│   └── outline.md
 └── .github/
     └── workflows/
         └── deploy.yml
@@ -37,10 +36,11 @@ chillpickle/
 
 ## Deployment
 
+- **All changes must be deployed via CI/CD** — commit to git, push to `main`, GitHub Actions handles the rest. Never SSH to make manual changes.
 - **CI/CD**: GitHub Actions (`.github/workflows/deploy.yml`) — auto-deploys on push to `main` when `services/` changes.
 - **Secrets**: Encrypted with sops/age (`.env.enc` files). Decrypted at deploy time.
-- **Manual deploy**: `./scripts/deploy.sh <traefik|docmost>`
 - **GitHub Secrets needed**: `SSH_PRIVATE_KEY`, `SSH_HOST`, `SSH_USER`, `SOPS_AGE_KEY`
+- `./scripts/deploy.sh <traefik|outline>` is for local testing/emergency only
 
 ## Common Operations
 
@@ -83,7 +83,7 @@ ssh chillpickle
 
 - **Config**: `services/traefik/` (file-based, no Docker labels/socket)
 - **Ports**: 80 (-> 301 HTTPS), 443
-- **TLS**: Wildcard cert `*.tcom.chillpickle.org` via Let's Encrypt DNS-01 + Cloudflare
+- **TLS**: Wildcard cert `*.tcom.chillpickle.org` + `outline.chillpickle.org` via Let's Encrypt DNS-01 + Cloudflare
 - **Cloudflare token**: stored in `services/traefik/.env.enc` (sops-encrypted, IP-restricted to VPS)
 - **Dashboard**: https://traefik.tcom.chillpickle.org (basic auth: `admin` / `chillpickle2026`)
 - Adding new service: edit `services/traefik/dynamic/routes.yml`, Traefik hot-reloads
@@ -92,17 +92,17 @@ ssh chillpickle
 
 | Service | URL | Compose Dir | Internal Port |
 |---------|-----|-------------|---------------|
-| Docmost | https://docmost.tcom.chillpickle.org | `services/docmost/` | 8088 |
+| Outline | https://outline.chillpickle.org | `services/outline/` | 8089 |
 
 ### DNS (Cloudflare)
 
 - **Zone**: `chillpickle.org` (ID: `58990c231e0dc7ed163b086df437b4ab`)
-- **Records**: `tcom.chillpickle.org` + `*.tcom.chillpickle.org` → <VPS_IP> (DNS-only)
+- **Records**: `tcom.chillpickle.org` + `*.tcom.chillpickle.org` + `outline.chillpickle.org` → <VPS_IP> (DNS-only)
 - **API token**: IP-restricted to VPS — must run Cloudflare API calls via SSH, not locally
 
 ### Firewall (UFW)
 
-Open ports: 22 (SSH), 80/443 (Traefik), 40831 (aaPanel admin). Direct service ports (8088) are closed.
+Open ports: 22 (SSH), 80/443 (Traefik), 40831 (aaPanel admin). Direct service ports (8089) are closed.
 
 ### aaPanel
 

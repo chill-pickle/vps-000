@@ -1,9 +1,9 @@
 http:
   routers:
-    docmost:
-      rule: "Host(`docmost.tcom.chillpickle.org`)"
+    outline:
+      rule: "Host(`outline.chillpickle.org`)"
       entryPoints: [websecure]
-      service: docmost
+      service: outline
 
     traefik-dashboard:
       rule: "Host(`traefik.tcom.chillpickle.org`)"
@@ -11,8 +11,18 @@ http:
       service: api@internal
       middlewares: [dashboard-auth]
 
+    chillang-api:
+      rule: "Host(`api.chillang.chillpickle.org`)"
+      entryPoints: [websecure]
+      service: chillang-api
+
   services:
-    docmost:
+    outline:
       loadBalancer:
         servers:
-          - url: "http://host.docker.internal:8088"
+          - url: "http://host.docker.internal:8089"
+
+    chillang-api:
+      loadBalancer:
+        servers:
+          - url: "http://host.docker.internal:8091"
