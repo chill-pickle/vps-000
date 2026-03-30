@@ -20,6 +20,10 @@ entryPoints:
           - main: "tcom.chillpickle.org"
             sans:
               - "*.tcom.chillpickle.org"
+          - main: "outline.chillpickle.org"
+          - main: "chillpickle.org"
+            sans:
+              - "*.chillang.chillpickle.org"
 
 certificatesResolvers:
   letsencrypt:

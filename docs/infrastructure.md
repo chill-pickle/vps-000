@@ -6,20 +6,20 @@
 graph TB
     subgraph Internet
         U[Users / Clients]
-        CF[Cloudflare DNS<br/>*.tcom.chillpickle.org]
+        CF[Cloudflare DNS<br/>*.tcom.chillpickle.org<br/>outline.chillpickle.org]
     end
 
     subgraph VPS ["VPS — 222.255.238.144"]
         subgraph Traefik ["Traefik v3.3 (Docker)"]
             EP80[":80 HTTP"]
             EP443[":443 HTTPS"]
-            ACME[Let's Encrypt<br/>Wildcard Cert]
+            ACME[Let's Encrypt<br/>Certs]
         end
 
-        subgraph Docmost ["Docmost Stack"]
-            DM[Docmost<br/>:8088 → :3000]
-            DMPG[(PostgreSQL)]
-            DMR[(Redis)]
+        subgraph Outline ["Outline Stack"]
+            OL[Outline<br/>:8089 → :3000]
+            OLPG[(PostgreSQL)]
+            OLR[(Redis)]
         end
     end
 
@@ -27,13 +27,13 @@ graph TB
     CF -->|A record| EP80
     CF -->|A record| EP443
     EP80 -->|301 redirect| EP443
-    EP443 -->|docmost.tcom| DM
+    EP443 -->|outline.*| OL
     EP443 -->|traefik.tcom| Traefik
 
     ACME -.->|DNS-01 challenge| CF
 
-    DM --- DMPG
-    DM --- DMR
+    OL --- OLPG
+    OL --- OLR
 ```
 
 ## Request Flow
@@ -45,13 +45,13 @@ sequenceDiagram
     participant T as Traefik :443
     participant S as Backend Service
 
-    C->>CF: docmost.tcom.chillpickle.org
+    C->>CF: outline.chillpickle.org
     CF-->>C: 222.255.238.144
 
-    C->>T: HTTPS request (SNI: docmost.tcom.*)
-    Note over T: TLS termination<br/>Wildcard cert *.tcom.chillpickle.org
+    C->>T: HTTPS request (SNI: outline.chillpickle.org)
+    Note over T: TLS termination<br/>Let's Encrypt cert
     T->>T: Match Host() rule → route to service
-    T->>S: HTTP proxy to host.docker.internal:8088
+    T->>S: HTTP proxy to host.docker.internal:8089
     S-->>T: Response
     T-->>C: HTTPS response
 ```
@@ -60,7 +60,7 @@ sequenceDiagram
 
 | Service | URL | Internal Port | Docker Compose |
 |---------|-----|---------------|----------------|
-| Docmost | https://docmost.tcom.chillpickle.org | 8088 | `services/docmost/` |
+| Outline | https://outline.chillpickle.org | 8089 | `services/outline/` |
 | Traefik Dashboard | https://traefik.tcom.chillpickle.org | -- | `services/traefik/` |
 
 ## Traefik Configuration
@@ -116,11 +116,11 @@ On the server, `acme/acme.json` (Let's Encrypt cert storage, chmod 600) is gener
              - url: "http://host.docker.internal:PORT"
    ```
 2. Traefik picks it up automatically (file watcher). No restart needed.
-3. The wildcard cert already covers `*.tcom.chillpickle.org`.
+3. The wildcard cert already covers `*.tcom.chillpickle.org`. For other domains, add them to `traefik.yml` TLS domains list.
 
 ## TLS / Certificates
 
-- **Cert**: Wildcard for `*.tcom.chillpickle.org` + `tcom.chillpickle.org`
+- **Certs**: Wildcard `*.tcom.chillpickle.org` + `tcom.chillpickle.org` + `outline.chillpickle.org`
 - **Issuer**: Let's Encrypt (production)
 - **Challenge**: DNS-01 via Cloudflare API
 - **Auto-renewal**: Traefik renews ~30 days before expiry
@@ -135,6 +135,7 @@ On the server, `acme/acme.json` (Let's Encrypt cert storage, chmod 600) is gener
 |------|------|---------|---------|
 | A | `tcom.chillpickle.org` | 222.255.238.144 | No |
 | A | `*.tcom.chillpickle.org` | 222.255.238.144 | No |
+| A | `outline.chillpickle.org` | 222.255.238.144 | No |
 
 DNS-only (grey cloud) — Traefik handles TLS termination, not Cloudflare.
 
@@ -147,7 +148,7 @@ DNS-only (grey cloud) — Traefik handles TLS termination, not Cloudflare.
 | 443 | Traefik HTTPS |
 | 40831 | aaPanel admin |
 
-Direct service ports (8088) are closed. All traffic goes through Traefik.
+Direct service ports (8089) are closed. All traffic goes through Traefik.
 
 ## Server Resources
 
@@ -162,13 +163,13 @@ Direct service ports (8088) are closed. All traffic goes through Traefik.
 graph LR
     subgraph Networks
         TN[traefik_default]
-        DN[docmost_default]
+        ON[outline_default]
     end
 
     T[traefik] --- TN
-    DMS[docmost + postgres + redis] --- DN
+    OLS[outline + postgres + redis] --- ON
 
-    T -.->|host.docker.internal| DMS
+    T -.->|host.docker.internal| OLS
 ```
 
 Each stack has its own isolated Docker network. Traefik reaches services through `host.docker.internal` (mapped to the host's network via `extra_hosts`), not by joining their networks.
@@ -187,12 +188,12 @@ cd ~/traefik && docker compose logs -f traefik
 
 # Restart a stack
 cd ~/traefik && docker compose restart
-cd ~/docmost && docker compose restart
+cd ~/outline && docker compose restart
 
 # Check resources
 free -h && docker stats --no-stream
 
 # Manual deploy from local machine
 ./scripts/deploy.sh traefik
-./scripts/deploy.sh docmost
+./scripts/deploy.sh outline
 ```
