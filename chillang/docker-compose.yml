@@ -1,0 +1,18 @@
+services:
+  chillang:
+    image: ghcr.io/chill-pickle/chillang-api:latest
+    container_name: chillang_api
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "8091:8000"
+    volumes:
+      - chillang_data:/app/data
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  chillang_data:

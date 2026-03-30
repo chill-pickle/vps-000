@@ -4,107 +4,103 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-Infrastructure-as-code repo for the **chillpickle** VPS. Service configs, secrets (sops/age-encrypted), and CI/CD live here. See `docs/infrastructure.md` for architecture docs with Mermaid diagrams.
+Monorepo for the **chillpickle** VPS (222.255.238.144). All services, infrastructure configs, secrets (sops/age), and CI/CD in one repo.
+
+## Rules
+
+- **All changes deployed via CI/CD.** Commit to git, push to `main`, GitHub Actions handles deployment. Never SSH to make manual changes.
+- **Secrets in `.env.enc` only.** Never commit plain `.env` files. Use `sops` to edit encrypted files.
+- `scripts/deploy.sh` is for emergency/testing only.
+
+## Architecture
+
+```
+Internet → Cloudflare DNS → Traefik v3.3 (:443, TLS termination)
+                              ├─ api.chillang.chillpickle.org → host:8091 (ChilLang API)
+                              ├─ outline.chillpickle.org      → host:8089 (Outline wiki)
+                              └─ traefik.tcom.chillpickle.org  → dashboard
+```
+
+Traefik uses **file-based routing** (no Docker socket). Services reached via `host.docker.internal`. Each Docker stack runs in its own network.
 
 ## Repo Structure
 
 ```
-chillpickle/
-├── CLAUDE.md
-├── .gitignore
-├── .sops.yaml
-├── services/
-│   ├── traefik/
-│   │   ├── docker-compose.yml
-│   │   ├── .env.enc
-│   │   ├── traefik.yml
-│   │   └── dynamic/
-│   │       ├── routes.yml
-│   │       └── middlewares.yml
-│   └── outline/
-│       ├── docker-compose.yml
-│       └── .env.enc
-├── scripts/
-│   └── deploy.sh
-├── docs/
-│   ├── infrastructure.md
-│   └── outline.md
-└── .github/
-    └── workflows/
-        └── deploy.yml
+traefik/          → rsync to ~/traefik/ (reverse proxy config)
+outline/          → rsync to ~/outline/ (wiki docker-compose + env)
+chillang/
+  ├── docker-compose.yml   → rsync to ~/chillang/ (production, uses GHCR image)
+  ├── .env.enc             → decrypted + rsync to ~/chillang/.env
+  ├── backend/             → CI builds Docker image (NOT deployed to server)
+  └── extension/           → CI builds artifact (manual Chrome install)
 ```
 
-## Deployment
+## ChilLang Backend
 
-- **All changes must be deployed via CI/CD** — commit to git, push to `main`, GitHub Actions handles the rest. Never SSH to make manual changes.
-- **CI/CD**: GitHub Actions (`.github/workflows/deploy.yml`) — auto-deploys on push to `main` when `services/` changes.
-- **Secrets**: Encrypted with sops/age (`.env.enc` files). Decrypted at deploy time.
-- **GitHub Secrets needed**: `SSH_PRIVATE_KEY`, `SSH_HOST`, `SSH_USER`, `SOPS_AGE_KEY`
-- `./scripts/deploy.sh <traefik|outline>` is for local testing/emergency only
+**Deployment**: CI builds Docker image → pushes to `ghcr.io/chill-pickle/chillang-api` → pulls on VPS. No source code on the server.
 
-## Common Operations
+**Local development**:
+```bash
+cd chillang/backend
+uv sync
+uv run uvicorn app.main:app --reload    # http://localhost:8000
+```
+
+**API**: POST `/api/v1/words`, GET `/api/v1/words/{id}/answers`, POST `/api/v1/words/{id}/answers/{id}/vote`, GET `/health`
+
+## ChilLang Extension
 
 ```bash
-# Run a command on the server
-ssh chillpickle-chill "command here"
-
-# Interactive session (preferred)
-ssh chillpickle-chill
-
-# Root access when needed
-ssh chillpickle
+cd chillang/extension
+npm install
+npm run build    # two-pass: main (ES) + content script (IIFE)
+npm run dev      # watch mode
+# Load extension/dist/ as unpacked in chrome://extensions
 ```
+
+**Build quirk**: Vite runs twice — first for service-worker + wordbank (ES modules), then `BUILD_TARGET=content` for content.js as IIFE (Chrome content scripts can't use ES imports).
+
+## Secrets Management
+
+```bash
+# Edit an encrypted env file
+sops traefik/.env.enc
+sops outline/.env.enc
+sops chillang/.env.enc
+
+# Decrypt to stdout (for debugging)
+sops -d --input-type dotenv --output-type dotenv chillang/.env.enc
+```
+
+All `.env.enc` files encrypted with age key `age1xf2gpz8tssl6jthpa4z3j9703qnd9phl5xzk4lm6wzfng7fe532qxq2v6f`.
+
+## CI/CD (GitHub Actions)
+
+Single workflow (`.github/workflows/deploy.yml`) with path-based detection:
+
+| Change in | Job | What happens |
+|-----------|-----|-------------|
+| `traefik/**` | deploy-traefik | sops decrypt → rsync → docker compose up → verify → rollback |
+| `outline/**` | deploy-outline | sops decrypt → rsync → docker compose pull+up → verify → rollback |
+| `chillang/backend/**` | deploy-chillang-backend | Docker build+push to GHCR → rsync compose+env → pull+up → health check → rollback |
+| `chillang/extension/**` | build-chillang-extension | npm build → upload artifact (no deploy) |
+
+Manual trigger: `workflow_dispatch` with service selector.
+
+**GitHub Secrets**: `SSH_PRIVATE_KEY`, `SSH_HOST`, `SSH_USER`, `SOPS_AGE_KEY`
+
+## Adding a New Service
+
+1. Create `<service>/docker-compose.yml` + `.env.enc`
+2. Add router+service to `traefik/dynamic/routes.yml` (hot-reloaded, no restart)
+3. Add deploy job to `.github/workflows/deploy.yml`
+4. Wildcard cert covers `*.tcom.chillpickle.org`; other domains need entry in `traefik/traefik.yml`
 
 ## Server Access
 
-- **IP**: 222.255.238.144
-- **Hostname**: chillpickles
-- **OS**: Ubuntu (Debian-based)
-- **SSH Port**: 22
-- **Password login**: Disabled (key-only)
-- **Resources**: 3.8 GB RAM + 4 GB swap, 2 vCPUs, 38 GB disk
+```bash
+ssh chillpickle-chill    # daily use (user: chill, passwordless sudo)
+ssh chillpickle          # root access
+```
 
-### SSH Config Aliases (`~/.ssh/config`)
-
-| Alias | User | Usage |
-|---|---|---|
-| `chillpickle` | root | Admin access |
-| `chillpickle-chill` | chill | Daily use (recommended) |
-
-### User: chill
-
-- Member of `root` group
-- Passwordless sudo (`/etc/sudoers.d/chill`)
-- SSH key auth configured
-
-## Current Stack
-
-### Reverse Proxy — Traefik v3.3
-
-- **Config**: `services/traefik/` (file-based, no Docker labels/socket)
-- **Ports**: 80 (-> 301 HTTPS), 443
-- **TLS**: Wildcard cert `*.tcom.chillpickle.org` + `outline.chillpickle.org` via Let's Encrypt DNS-01 + Cloudflare
-- **Cloudflare token**: stored in `services/traefik/.env.enc` (sops-encrypted, IP-restricted to VPS)
-- **Dashboard**: https://traefik.tcom.chillpickle.org (basic auth: `admin` / `chillpickle2026`)
-- Adding new service: edit `services/traefik/dynamic/routes.yml`, Traefik hot-reloads
-
-### Services
-
-| Service | URL | Compose Dir | Internal Port |
-|---------|-----|-------------|---------------|
-| Outline | https://outline.chillpickle.org | `services/outline/` | 8089 |
-
-### DNS (Cloudflare)
-
-- **Zone**: `chillpickle.org` (ID: `58990c231e0dc7ed163b086df437b4ab`)
-- **Records**: `tcom.chillpickle.org` + `*.tcom.chillpickle.org` + `outline.chillpickle.org` → 222.255.238.144 (DNS-only)
-- **API token**: IP-restricted to VPS — must run Cloudflare API calls via SSH, not locally
-
-### Firewall (UFW)
-
-Open ports: 22 (SSH), 80/443 (Traefik), 40831 (aaPanel admin). Direct service ports (8089) are closed.
-
-### aaPanel
-
-- Installed but nginx **stopped and disabled** (Traefik replaced it)
-- Panel still accessible at port 40831 for server monitoring
+VPS: Ubuntu, 3.8 GB RAM + 4 GB swap, 2 vCPUs, 38 GB disk. UFW open: 22, 80, 443, 40831 (aaPanel).

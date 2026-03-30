@@ -19,7 +19,7 @@ Wiki and knowledge base at **https://outline.chillpickle.org**.
 1. Go to [Google Cloud Console](https://console.cloud.google.com/) > APIs & Services > Credentials
 2. Create OAuth 2.0 Client ID (Web application)
 3. Authorized redirect URI: `https://outline.chillpickle.org/auth/google.callback`
-4. Copy Client ID and Client Secret into `services/outline/.env.enc` (via sops)
+4. Copy Client ID and Client Secret into `outline/.env.enc` (via sops)
 
 ## DNS
 

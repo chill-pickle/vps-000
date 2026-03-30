@@ -1,9 +1,38 @@
-# Unencrypted secrets (only .env.enc is committed)
+# Decrypted secrets (only .env.enc is committed)
 **/.env
 !**/.env.enc
+!**/.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.python-version
+
+# Node
+node_modules/
+
+# Extension build output
+chillang/extension/dist/
+
+# SQLite
+*.db
+*.db-shm
+*.db-wal
 
 # Traefik auto-generated certs
-services/traefik/acme/
+traefik/acme/
 
 # Docker data volumes
 **/data/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
