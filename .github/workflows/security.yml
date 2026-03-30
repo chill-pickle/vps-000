@@ -1,0 +1,73 @@
+name: Security
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Weekly scan every Monday at 06:00 UTC
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  # -----------------------------------------------------------
+  # Scan git history for leaked secrets
+  # -----------------------------------------------------------
+  trufflehog:
+    name: Secret scan (TruffleHog)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: TruffleHog scan
+        uses: trufflesecurity/trufflehog@586f66d7886cd0b037c7c245d4a6e34ef357ab10 # v3.94.1
+        with:
+          extra_args: --only-verified
+
+  # -----------------------------------------------------------
+  # Scan filesystem for vulnerabilities and misconfigurations
+  # -----------------------------------------------------------
+  trivy-fs:
+    name: Vulnerability scan (Trivy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Trivy filesystem scan
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          severity: CRITICAL,HIGH
+          exit-code: 1
+          format: table
+          scanners: vuln,misconfig,secret
+
+  # -----------------------------------------------------------
+  # Scan the chillang Docker image for CVEs
+  # -----------------------------------------------------------
+  trivy-image:
+    name: Image scan (Trivy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build chillang image
+        run: docker build -t chillang-api:scan chillang/backend/
+
+      - name: Trivy image scan
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # v0.35.0
+        with:
+          scan-type: image
+          image-ref: chillang-api:scan
+          severity: CRITICAL,HIGH
+          exit-code: 1
+          format: table
+          scanners: vuln
