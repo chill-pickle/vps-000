@@ -5,12 +5,6 @@ http:
       entryPoints: [websecure]
       service: outline
 
-    traefik-dashboard:
-      rule: "Host(`traefik.tcom.chillpickle.org`)"
-      entryPoints: [websecure]
-      service: api@internal
-      middlewares: [dashboard-auth]
-
     chillang-api:
       rule: "Host(`api.chillang.chillpickle.org`)"
       entryPoints: [websecure]
