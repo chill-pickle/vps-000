@@ -11,9 +11,11 @@ RUN uv sync --frozen --no-dev
 
 COPY . .
 
-RUN mkdir -p data && chown -R app:app data
+RUN chown -R app:app /app
 
 USER app
+
+RUN mkdir -p data
 
 EXPOSE 8000
 
