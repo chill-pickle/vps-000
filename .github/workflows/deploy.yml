@@ -80,6 +80,8 @@ jobs:
       github.event.inputs.service == 'traefik' ||
       github.event.inputs.service == 'all'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
@@ -110,6 +112,8 @@ jobs:
       github.event.inputs.service == 'outline' ||
       github.event.inputs.service == 'all'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
@@ -173,6 +177,8 @@ jobs:
       github.event.inputs.service == 'chillang-extension' ||
       github.event.inputs.service == 'all'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
