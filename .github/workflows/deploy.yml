@@ -254,8 +254,8 @@ jobs:
       - name: Health check
         run: |
           echo "Waiting for service to become ready..."
-          sleep 10
-          for i in 1 2 3 4 5; do
+          sleep 15
+          for i in 1 2 3 4 5 6; do
             STATUS=$(ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
               "curl -s -o /dev/null -w '%{http_code}' http://localhost:8091/health" 2>/dev/null || echo "000")
             echo "Attempt $i — HTTP $STATUS"
@@ -263,7 +263,7 @@ jobs:
               echo "Health check passed."
               exit 0
             fi
-            sleep 5
+            sleep 10
           done
           echo "Health check failed — rolling back"
           ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} bash -s << 'ENDSSH'
