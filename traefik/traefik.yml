@@ -17,9 +17,6 @@ entryPoints:
       tls:
         certResolver: letsencrypt
         domains:
-          - main: "tcom.chillpickle.org"
-            sans:
-              - "*.tcom.chillpickle.org"
           - main: "outline.chillpickle.org"
           - main: "chillpickle.org"
             sans:

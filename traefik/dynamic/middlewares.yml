@@ -1,6 +1,2 @@
 http:
-  middlewares:
-    dashboard-auth:
-      basicAuth:
-        users:
-          - "admin:$$2y$$05$$SJDNBgVDpgXFuG1fvVyuUuGpYFQtNKtZHSCtLGx05DMoPRXtZAHja"
+  middlewares: {}
