@@ -146,15 +146,14 @@ DNS-only (grey cloud) — Traefik handles TLS termination, not Cloudflare.
 | 22 | SSH |
 | 80 | Traefik HTTP (redirects to 443) |
 | 443 | Traefik HTTPS |
-| 40831 | aaPanel admin |
 
 Direct service ports (8089) are closed. All traffic goes through Traefik.
 
 ## Server Resources
 
-- **RAM**: 3.8 GB + 4 GB swap (swappiness=10)
-- **CPU**: 2 vCPUs
-- **Disk**: 38 GB (aaPanel nginx stopped, not removed)
+- **RAM**: [redacted]
+- **CPU**: [redacted]
+- **Disk**: [redacted]
 - **OS**: Ubuntu (Debian-based)
 
 ## Docker Stacks
