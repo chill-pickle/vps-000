@@ -103,4 +103,4 @@ ssh chillpickle-chill    # daily use (user: chill, passwordless sudo)
 ssh chillpickle          # root access
 ```
 
-VPS: Ubuntu, 3.8 GB RAM + 4 GB swap, 2 vCPUs, 38 GB disk. UFW open: 22, 80, 443, 40831 (aaPanel).
+VPS: Ubuntu. UFW open: 22, 80, 443.
