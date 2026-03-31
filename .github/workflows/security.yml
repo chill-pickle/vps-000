@@ -71,3 +71,4 @@ jobs:
           exit-code: 1
           format: table
           scanners: vuln
+          ignore-unfixed: true

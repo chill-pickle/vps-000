@@ -2,6 +2,8 @@ FROM python:3.13-slim
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
+RUN groupadd -r app && useradd -r -g app -d /app app
+
 WORKDIR /app
 
 COPY pyproject.toml uv.lock ./
@@ -9,7 +11,9 @@ RUN uv sync --frozen --no-dev
 
 COPY . .
 
-RUN mkdir -p data
+RUN mkdir -p data && chown -R app:app data
+
+USER app
 
 EXPOSE 8000
 
