@@ -245,7 +245,7 @@ jobs:
       - name: Pull image and restart
         run: |
           ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} bash -s << 'ENDSSH'
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+            docker logout ghcr.io 2>/dev/null || true
             cd ~/chillang
             docker compose pull
             docker compose up -d
