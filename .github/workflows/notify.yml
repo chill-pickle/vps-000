@@ -26,20 +26,26 @@ jobs:
           COMMIT_MSG=$(echo "${{ github.event.workflow_run.head_commit.message }}" | head -1)
 
           if [ "$CONCLUSION" = "success" ]; then
-            ICON="✅"
+            STATUS_ICON="✅"
           elif [ "$CONCLUSION" = "failure" ]; then
-            ICON="❌"
+            STATUS_ICON="❌"
           elif [ "$CONCLUSION" = "cancelled" ]; then
-            ICON="⚠️"
+            STATUS_ICON="⚠️"
           else
-            ICON="ℹ️"
+            STATUS_ICON="ℹ️"
           fi
 
-          TEXT="${ICON} *${WORKFLOW}* — ${CONCLUSION}
+          if [ "$WORKFLOW" = "Deploy" ]; then
+            TYPE_ICON="🚀"
+          elif [ "$WORKFLOW" = "Security" ]; then
+            TYPE_ICON="🔒"
+          else
+            TYPE_ICON="⚙️"
+          fi
 
-          📦 \`${REPO}\` on \`${BRANCH}\`
-          🔗 [${SHORT_SHA}](${RUN_URL}) by ${ACTOR}
-          💬 ${COMMIT_MSG}"
+          TEXT="${TYPE_ICON} *${WORKFLOW}* ${STATUS_ICON} ${CONCLUSION}
+          \`${BRANCH}\` · [${SHORT_SHA}](${RUN_URL}) · ${ACTOR}
+          ${COMMIT_MSG}"
 
           curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
             -d chat_id="${TELEGRAM_CHAT_ID}" \
