@@ -18,6 +18,7 @@ entryPoints:
         certResolver: letsencrypt
         domains:
           - main: "outline.chillpickle.org"
+          - main: "dash.chillpickle.org"
           - main: "chillpickle.org"
             sans:
               - "*.chillang.chillpickle.org"
