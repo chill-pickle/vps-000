@@ -1,0 +1,22 @@
+services:
+  dashy:
+    image: lissy93/dashy:latest
+    container_name: dashy
+    ports:
+      - "8092:8080"
+    volumes:
+      - ./conf.yml:/app/user-data/conf.yml:ro
+    environment:
+      NODE_ENV: production
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "/app/services/healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
