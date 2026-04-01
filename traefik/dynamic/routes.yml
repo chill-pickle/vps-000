@@ -10,6 +10,11 @@ http:
       entryPoints: [websecure]
       service: chillang-api
 
+    dashy:
+      rule: "Host(`dash.chillpickle.org`)"
+      entryPoints: [websecure]
+      service: dashy
+
   services:
     outline:
       loadBalancer:
@@ -20,3 +25,8 @@ http:
       loadBalancer:
         servers:
           - url: "http://host.docker.internal:8091"
+
+    dashy:
+      loadBalancer:
+        servers:
+          - url: "http://host.docker.internal:8092"

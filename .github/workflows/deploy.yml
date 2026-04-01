@@ -6,6 +6,7 @@ on:
     paths:
       - "traefik/**"
       - "outline/**"
+      - "dashy/**"
       - "chillang/backend/**"
       - "chillang/docker-compose.yml"
       - "chillang/.env.enc"
@@ -15,6 +16,7 @@ on:
     paths:
       - "traefik/**"
       - "outline/**"
+      - "dashy/**"
       - "chillang/backend/**"
       - "chillang/docker-compose.yml"
       - "chillang/.env.enc"
@@ -28,6 +30,7 @@ on:
         options:
           - all
           - traefik
+          - dashy
           - outline
           - chillang-backend
           - chillang-extension
@@ -46,6 +49,7 @@ jobs:
     outputs:
       traefik: ${{ steps.filter.outputs.traefik }}
       outline: ${{ steps.filter.outputs.outline }}
+      dashy: ${{ steps.filter.outputs.dashy }}
       chillang-backend: ${{ steps.filter.outputs.chillang-backend }}
       chillang-extension: ${{ steps.filter.outputs.chillang-extension }}
     steps:
@@ -58,6 +62,8 @@ jobs:
               - "traefik/**"
             outline:
               - "outline/**"
+            dashy:
+              - "dashy/**"
             chillang-backend:
               - "chillang/backend/**"
               - "chillang/docker-compose.yml"
@@ -320,6 +326,55 @@ jobs:
               exit 1
             fi
             rm -rf ~/outline.bak
+          ENDSSH
+
+  # -----------------------------------------------------------
+  # Deploy Dashy dashboard
+  # -----------------------------------------------------------
+  deploy-dashy:
+    name: Deploy Dashy
+    needs: changes
+    if: >
+      (needs.changes.outputs.dashy == 'true' || github.event.inputs.service == 'dashy' || github.event.inputs.service == 'all') &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Add VPS to known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Backup current config
+        run: ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "cp -r ~/dashy ~/dashy.bak 2>/dev/null || true"
+
+      - name: Rsync to server
+        run: |
+          rsync -avz --delete \
+            dashy/ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/dashy/
+
+      - name: Restart and verify
+        run: |
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} bash -s << 'ENDSSH'
+            cd ~/dashy
+            docker compose pull
+            docker compose up -d
+            sleep 10
+            if ! docker compose ps --format json | grep -q '"running"'; then
+              echo "DEPLOY FAILED — rolling back"
+              rm -rf ~/dashy && mv ~/dashy.bak ~/dashy
+              cd ~/dashy && docker compose up -d
+              exit 1
+            fi
+            rm -rf ~/dashy.bak
           ENDSSH
 
   # -----------------------------------------------------------
