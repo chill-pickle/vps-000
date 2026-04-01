@@ -46,7 +46,7 @@ def init_db() -> None:
     conn = get_db()
     conn.execute(
         """
-        CREATE TABLE IF NOT EXISTS tasks (
+        CREATE TABLE IF NOT EXISTS stories (
             id          INTEGER PRIMARY KEY AUTOINCREMENT,
             title       TEXT    NOT NULL,
             description TEXT,
@@ -67,7 +67,7 @@ def init_db() -> None:
 # ---------------------------------------------------------------------------
 
 
-class TaskCreate(BaseModel):
+class StoryCreate(BaseModel):
     title: str
     description: Optional[str] = None
     status: Status = Status.todo
@@ -75,7 +75,7 @@ class TaskCreate(BaseModel):
     assignee: Optional[str] = None
 
 
-class TaskUpdate(BaseModel):
+class StoryUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
     status: Optional[Status] = None
@@ -83,7 +83,7 @@ class TaskUpdate(BaseModel):
     assignee: Optional[str] = None
 
 
-class Task(BaseModel):
+class Story(BaseModel):
     id: int
     title: str
     description: Optional[str]
@@ -94,8 +94,8 @@ class Task(BaseModel):
     updated_at: datetime
 
 
-def row_to_task(row: sqlite3.Row) -> Task:
-    return Task(
+def row_to_story(row: sqlite3.Row) -> Story:
+    return Story(
         id=row["id"],
         title=row["title"],
         description=row["description"],
@@ -134,14 +134,14 @@ def health():
     return {"status": "ok"}
 
 
-@app.get("/tasks", response_model=list[Task])
-def list_tasks(
+@app.get("/stories", response_model=list[Story])
+def list_stories(
     status: Optional[Status] = Query(None),
     priority: Optional[Priority] = Query(None),
     assignee: Optional[str] = Query(None),
 ):
     conn = get_db()
-    query = "SELECT * FROM tasks WHERE 1=1"
+    query = "SELECT * FROM stories WHERE 1=1"
     params: list = []
     if status:
         query += " AND status = ?"
@@ -155,16 +155,16 @@ def list_tasks(
     query += " ORDER BY id DESC"
     rows = conn.execute(query, params).fetchall()
     conn.close()
-    return [row_to_task(r) for r in rows]
+    return [row_to_story(r) for r in rows]
 
 
-@app.post("/tasks", response_model=Task, status_code=201)
-def create_task(body: TaskCreate):
+@app.post("/stories", response_model=Story, status_code=201)
+def create_story(body: StoryCreate):
     now = datetime.now(timezone.utc).isoformat()
     conn = get_db()
     cur = conn.execute(
         """
-        INSERT INTO tasks (title, description, status, priority, assignee, created_at, updated_at)
+        INSERT INTO stories (title, description, status, priority, assignee, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?)
         """,
         (
@@ -178,41 +178,41 @@ def create_task(body: TaskCreate):
         ),
     )
     conn.commit()
-    row = conn.execute("SELECT * FROM tasks WHERE id = ?", (cur.lastrowid,)).fetchone()
+    row = conn.execute("SELECT * FROM stories WHERE id = ?", (cur.lastrowid,)).fetchone()
     conn.close()
-    return row_to_task(row)
+    return row_to_story(row)
 
 
-@app.patch("/tasks/{task_id}", response_model=Task)
-def update_task(task_id: int, body: TaskUpdate):
+@app.patch("/stories/{story_id}", response_model=Story)
+def update_story(story_id: int, body: StoryUpdate):
     conn = get_db()
-    row = conn.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
+    row = conn.execute("SELECT * FROM stories WHERE id = ?", (story_id,)).fetchone()
     if not row:
         conn.close()
-        raise HTTPException(status_code=404, detail="Task not found")
+        raise HTTPException(status_code=404, detail="Story not found")
 
     updates = body.model_dump(exclude_unset=True)
     if not updates:
         conn.close()
-        return row_to_task(row)
+        return row_to_story(row)
 
     updates["updated_at"] = datetime.now(timezone.utc).isoformat()
     set_clause = ", ".join(f"{k} = ?" for k in updates)
     values = [v.value if isinstance(v, Enum) else v for v in updates.values()]
-    values.append(task_id)
+    values.append(story_id)
 
-    conn.execute(f"UPDATE tasks SET {set_clause} WHERE id = ?", values)
+    conn.execute(f"UPDATE stories SET {set_clause} WHERE id = ?", values)
     conn.commit()
-    row = conn.execute("SELECT * FROM tasks WHERE id = ?", (task_id,)).fetchone()
+    row = conn.execute("SELECT * FROM stories WHERE id = ?", (story_id,)).fetchone()
     conn.close()
-    return row_to_task(row)
+    return row_to_story(row)
 
 
-@app.delete("/tasks/{task_id}", status_code=204)
-def delete_task(task_id: int):
+@app.delete("/stories/{story_id}", status_code=204)
+def delete_story(story_id: int):
     conn = get_db()
-    result = conn.execute("DELETE FROM tasks WHERE id = ?", (task_id,))
+    result = conn.execute("DELETE FROM stories WHERE id = ?", (story_id,))
     conn.commit()
     conn.close()
     if result.rowcount == 0:
-        raise HTTPException(status_code=404, detail="Task not found")
+        raise HTTPException(status_code=404, detail="Story not found")

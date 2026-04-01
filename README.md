@@ -9,7 +9,7 @@ Monorepo for the **chillpickle** VPS — infrastructure, services, and CI/CD in 
 | [ChilLang](chillang/) | `api.chillang.chillpickle.org` | FastAPI + SQLite + OpenAI, Chrome extension (Svelte 5) |
 | [Outline](outline/) | `outline.chillpickle.org` | Outline wiki + PostgreSQL + Redis |
 | [Dashy](dashy/) | `dash.chillpickle.org` | Self-hosted dashboard for services & links |
-| [TODO API](todo/) | `todo.chillpickle.org` | FastAPI + SQLite task manager |
+| [TODO API](todo/) | `todo.chillpickle.org` | FastAPI + SQLite story tracker |
 | [Traefik](traefik/) | `traefik.tcom.chillpickle.org` | Reverse proxy, TLS via Let's Encrypt DNS-01 |
 
 ## Architecture
