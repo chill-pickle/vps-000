@@ -1,7 +1,7 @@
 [project]
-name = "todo-api"
+name = "story-api"
 version = "0.1.0"
-description = "Simple TODO API with FastAPI + SQLite"
+description = "Story tracker API with FastAPI + SQLite"
 requires-python = ">=3.13"
 dependencies = [
     "fastapi[standard]>=0.115.0",

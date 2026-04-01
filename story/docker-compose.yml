@@ -1,12 +1,12 @@
 services:
-  todo-api:
-    image: ghcr.io/chill-pickle/todo-api:latest
-    container_name: todo_api
+  story-api:
+    image: ghcr.io/chill-pickle/story-api:latest
+    container_name: story_api
     restart: unless-stopped
     ports:
       - "8093:8093"
     volumes:
-      - todo_data:/app/data
+      - story_data:/app/data
     logging:
       driver: json-file
       options:
@@ -14,4 +14,4 @@ services:
         max-file: "3"
 
 volumes:
-  todo_data:
+  story_data:

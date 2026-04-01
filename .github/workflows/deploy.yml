@@ -11,8 +11,8 @@ on:
       - "chillang/docker-compose.yml"
       - "chillang/.env.enc"
       - "chillang/extension/**"
-      - "todo/backend/**"
-      - "todo/docker-compose.yml"
+      - "story/backend/**"
+      - "story/docker-compose.yml"
   pull_request:
     branches: [main]
     paths:
@@ -23,8 +23,8 @@ on:
       - "chillang/docker-compose.yml"
       - "chillang/.env.enc"
       - "chillang/extension/**"
-      - "todo/backend/**"
-      - "todo/docker-compose.yml"
+      - "story/backend/**"
+      - "story/docker-compose.yml"
   workflow_dispatch:
     inputs:
       service:
@@ -38,7 +38,7 @@ on:
           - outline
           - chillang-backend
           - chillang-extension
-          - todo-backend
+          - story-backend
 
 concurrency:
   group: deploy-${{ github.ref }}
@@ -57,7 +57,7 @@ jobs:
       dashy: ${{ steps.filter.outputs.dashy }}
       chillang-backend: ${{ steps.filter.outputs.chillang-backend }}
       chillang-extension: ${{ steps.filter.outputs.chillang-extension }}
-      todo-backend: ${{ steps.filter.outputs.todo-backend }}
+      story-backend: ${{ steps.filter.outputs.story-backend }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -76,9 +76,9 @@ jobs:
               - "chillang/.env.enc"
             chillang-extension:
               - "chillang/extension/**"
-            todo-backend:
-              - "todo/backend/**"
-              - "todo/docker-compose.yml"
+            story-backend:
+              - "story/backend/**"
+              - "story/docker-compose.yml"
 
   # ===========================================================
   # VALIDATE — runs on both PRs and pushes (no approval needed)
@@ -466,12 +466,12 @@ jobs:
   # -----------------------------------------------------------
   # Build TODO API backend Docker image
   # -----------------------------------------------------------
-  build-todo-backend:
-    name: Build TODO backend
+  build-story-backend:
+    name: Build Story backend
     needs: changes
     if: >
-      needs.changes.outputs.todo-backend == 'true' ||
-      github.event.inputs.service == 'todo-backend' ||
+      needs.changes.outputs.story-backend == 'true' ||
+      github.event.inputs.service == 'story-backend' ||
       github.event.inputs.service == 'all'
     runs-on: ubuntu-latest
     permissions:
@@ -490,25 +490,25 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
-          context: todo/backend
+          context: story/backend
           push: true
           tags: |
-            ghcr.io/chill-pickle/todo-api:${{ github.sha }}
-            ${{ github.event_name != 'pull_request' && 'ghcr.io/chill-pickle/todo-api:latest' || '' }}
+            ghcr.io/chill-pickle/story-api:${{ github.sha }}
+            ${{ github.event_name != 'pull_request' && 'ghcr.io/chill-pickle/story-api:latest' || '' }}
 
   # -----------------------------------------------------------
   # Deploy TODO API backend to VPS
   # -----------------------------------------------------------
-  deploy-todo-backend:
-    name: Deploy TODO backend
-    needs: build-todo-backend
+  deploy-story-backend:
+    name: Deploy Story backend
+    needs: build-story-backend
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
       contents: read
     environment:
       name: production
-      url: https://todo.chillpickle.org
+      url: https://story.chillpickle.org
     steps:
       - uses: actions/checkout@v4
 
@@ -522,19 +522,19 @@ jobs:
           ssh-keyscan -H "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts
 
       - name: Backup current config
-        run: ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "cp -r ~/todo ~/todo.bak 2>/dev/null || true"
+        run: ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "cp -r ~/story ~/story.bak 2>/dev/null || true"
 
       - name: Deploy compose to server
         run: |
           rsync -avz \
-            todo/docker-compose.yml \
-            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/todo/
+            story/docker-compose.yml \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/story/
 
       - name: Pull image and restart
         run: |
           ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} bash -s << 'ENDSSH'
             docker logout ghcr.io 2>/dev/null || true
-            cd ~/todo
+            cd ~/story
             docker compose pull
             docker compose up -d
           ENDSSH
@@ -555,10 +555,10 @@ jobs:
           done
           echo "Health check failed — rolling back"
           ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} bash -s << 'ENDSSH'
-            rm -rf ~/todo && mv ~/todo.bak ~/todo
-            cd ~/todo && docker compose up -d
+            rm -rf ~/story && mv ~/story.bak ~/story
+            cd ~/story && docker compose up -d
           ENDSSH
           exit 1
 
       - name: Cleanup backup
-        run: ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "rm -rf ~/todo.bak"
+        run: ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "rm -rf ~/story.bak"

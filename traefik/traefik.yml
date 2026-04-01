@@ -19,7 +19,7 @@ entryPoints:
         domains:
           - main: "outline.chillpickle.org"
           - main: "dash.chillpickle.org"
-          - main: "todo.chillpickle.org"
+          - main: "story.chillpickle.org"
           - main: "chillpickle.org"
             sans:
               - "*.chillang.chillpickle.org"
