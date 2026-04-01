@@ -11,6 +11,8 @@ on:
       - "chillang/docker-compose.yml"
       - "chillang/.env.enc"
       - "chillang/extension/**"
+      - "todo/backend/**"
+      - "todo/docker-compose.yml"
   pull_request:
     branches: [main]
     paths:
@@ -21,6 +23,8 @@ on:
       - "chillang/docker-compose.yml"
       - "chillang/.env.enc"
       - "chillang/extension/**"
+      - "todo/backend/**"
+      - "todo/docker-compose.yml"
   workflow_dispatch:
     inputs:
       service:
@@ -34,6 +38,7 @@ on:
           - outline
           - chillang-backend
           - chillang-extension
+          - todo-backend
 
 concurrency:
   group: deploy-${{ github.ref }}
@@ -52,6 +57,7 @@ jobs:
       dashy: ${{ steps.filter.outputs.dashy }}
       chillang-backend: ${{ steps.filter.outputs.chillang-backend }}
       chillang-extension: ${{ steps.filter.outputs.chillang-extension }}
+      todo-backend: ${{ steps.filter.outputs.todo-backend }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -70,6 +76,9 @@ jobs:
               - "chillang/.env.enc"
             chillang-extension:
               - "chillang/extension/**"
+            todo-backend:
+              - "todo/backend/**"
+              - "todo/docker-compose.yml"
 
   # ===========================================================
   # VALIDATE — runs on both PRs and pushes (no approval needed)
@@ -453,3 +462,103 @@ jobs:
 
       - name: Cleanup backup
         run: ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "rm -rf ~/chillang.bak"
+
+  # -----------------------------------------------------------
+  # Build TODO API backend Docker image
+  # -----------------------------------------------------------
+  build-todo-backend:
+    name: Build TODO backend
+    needs: changes
+    if: >
+      needs.changes.outputs.todo-backend == 'true' ||
+      github.event.inputs.service == 'todo-backend' ||
+      github.event.inputs.service == 'all'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: todo/backend
+          push: true
+          tags: |
+            ghcr.io/chill-pickle/todo-api:${{ github.sha }}
+            ${{ github.event_name != 'pull_request' && 'ghcr.io/chill-pickle/todo-api:latest' || '' }}
+
+  # -----------------------------------------------------------
+  # Deploy TODO API backend to VPS
+  # -----------------------------------------------------------
+  deploy-todo-backend:
+    name: Deploy TODO backend
+    needs: build-todo-backend
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    environment:
+      name: production
+      url: https://todo.chillpickle.org
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Add VPS to known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Backup current config
+        run: ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "cp -r ~/todo ~/todo.bak 2>/dev/null || true"
+
+      - name: Deploy compose to server
+        run: |
+          rsync -avz \
+            todo/docker-compose.yml \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/todo/
+
+      - name: Pull image and restart
+        run: |
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} bash -s << 'ENDSSH'
+            docker logout ghcr.io 2>/dev/null || true
+            cd ~/todo
+            docker compose pull
+            docker compose up -d
+          ENDSSH
+
+      - name: Health check
+        run: |
+          echo "Waiting for service to become ready..."
+          sleep 15
+          for i in 1 2 3 4 5 6; do
+            STATUS=$(ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+              "curl -s -o /dev/null -w '%{http_code}' http://localhost:8093/health" 2>/dev/null || echo "000")
+            echo "Attempt $i — HTTP $STATUS"
+            if [ "$STATUS" = "200" ]; then
+              echo "Health check passed."
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "Health check failed — rolling back"
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} bash -s << 'ENDSSH'
+            rm -rf ~/todo && mv ~/todo.bak ~/todo
+            cd ~/todo && docker compose up -d
+          ENDSSH
+          exit 1
+
+      - name: Cleanup backup
+        run: ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "rm -rf ~/todo.bak"
