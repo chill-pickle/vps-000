@@ -15,10 +15,10 @@ http:
       entryPoints: [websecure]
       service: dashy
 
-    todo-api:
-      rule: "Host(`todo.chillpickle.org`)"
+    story-api:
+      rule: "Host(`story.chillpickle.org`)"
       entryPoints: [websecure]
-      service: todo-api
+      service: story-api
 
   services:
     outline:
@@ -36,7 +36,7 @@ http:
         servers:
           - url: "http://host.docker.internal:8092"
 
-    todo-api:
+    story-api:
       loadBalancer:
         servers:
           - url: "http://host.docker.internal:8093"
