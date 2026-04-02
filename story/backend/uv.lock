@@ -725,7 +725,7 @@ wheels = [
 ]
 
 [[package]]
-name = "todo-api"
+name = "story-api"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
