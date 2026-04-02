@@ -6,8 +6,8 @@ RUN groupadd -r app && useradd -r -g app -d /app app
 
 WORKDIR /app
 
-COPY pyproject.toml ./
-RUN uv sync --no-dev
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-dev
 
 COPY . .
 
