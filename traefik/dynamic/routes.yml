@@ -20,6 +20,13 @@ http:
       entryPoints: [websecure]
       service: story-api
 
+    traefik-dashboard:
+      rule: "Host(`traefik.tcom.chillpickle.org`)"
+      entryPoints: [websecure]
+      service: api@internal
+      middlewares:
+        - dashboard-auth
+
   services:
     outline:
       loadBalancer:
