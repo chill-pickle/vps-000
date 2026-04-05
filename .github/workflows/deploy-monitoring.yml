@@ -1,0 +1,18 @@
+name: Deploy Monitoring Stack
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'monitoring/**'
+      - '.github/workflows/reusable/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'monitoring/**'
+      - '.github/workflows/reusable/**'
+
+jobs:
+  deploy:
+    if: github.event_name == 'push'
+    uses: ./.github/workflows/reusable/deploy-monitoring.yml

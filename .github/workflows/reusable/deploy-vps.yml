@@ -1,0 +1,38 @@
+name: Reusable Deploy to VPS
+
+on:
+  workflow_call:
+    inputs:
+      service_name:
+        required: true
+        type: string
+      service_path:
+        required: true
+        type: string
+      ssh_host:
+        required: true
+        type: string
+      ssh_user:
+        required: true
+        type: string
+      docker_compose_command:
+        required: false
+        type: string
+        default: "up -d"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+          ssh-key-scan: ${{ secrets.SSH_HOST }}
+
+      - name: Deploy service
+        run: |
+          rsync -r ${{ inputs.service_path }}/ ${{ inputs.ssh_user }}@${{ inputs.ssh_host }}:~/${{ inputs.service_name }}/
+          ssh ${{ inputs.ssh_user }}@${{ inputs.ssh_host }} "cd ~/${{ inputs.service_name }} && docker compose ${{ inputs.docker_compose_command }}"
