@@ -4,13 +4,14 @@ Monorepo for the **chillpickle** VPS — infrastructure, services, and CI/CD in 
 
 ## Services
 
-| Service | URL | Stack |
-|---------|-----|-------|
-| [ChilLang](chillang/) | `api.chillang.chillpickle.org` | FastAPI + SQLite + OpenAI, Chrome extension (Svelte 5) |
-| [Outline](outline/) | `outline.chillpickle.org` | Outline wiki + PostgreSQL + Redis |
-| [Dashy](dashy/) | `dash.chillpickle.org` | Self-hosted dashboard for services & links |
-| [Story API](story/) | `story.chillpickle.org` | FastAPI + SQLite story tracker |
-| [Traefik](traefik/) | `traefik.tcom.chillpickle.org` | Reverse proxy, TLS via Let's Encrypt DNS-01 |
+| Service | URL | Port | Stack |
+|---------|-----|------|-------|
+| [ChilLang](chillang/) | `api.chillang.chillpickle.org` | — | FastAPI + SQLite + OpenAI, Chrome extension (Svelte 5) |
+| [Outline](outline/) | `outline.chillpickle.org` | — | Outline wiki + PostgreSQL + Redis |
+| [Dashy](dashy/) | `dash.chillpickle.org` | — | Self-hosted dashboard for services & links |
+| [Story API](story/) | `story.chillpickle.org` | — | FastAPI + SQLite story tracker |
+| [Traefik](traefik/) | `traefik.tcom.chillpickle.org` | — | Reverse proxy, TLS via Let's Encrypt DNS-01 |
+| [Grafana](monitoring/) | `grafana.chillpickle.org` | 3001 | Prometheus dashboards (Prometheus + Alertmanager + Node Exporter) |
 
 ## Architecture
 

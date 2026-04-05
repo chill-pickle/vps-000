@@ -1,0 +1,33 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - /etc/prometheus/rules/*.yml
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager:9093']
+
+scrape_configs:
+  - job_name: 'vps-node'
+    static_configs:
+      - targets: ['node-exporter:9101']
+        labels:
+          instance: 'vps-000'
+          environment: 'production'
+
+  - job_name: 'lacia-node'
+    static_configs:
+      - targets: ['192.168.0.100:9100']
+        labels:
+          instance: 'lacia-machine'
+          environment: 'development'
+
+  - job_name: 'primary-node'
+    static_configs:
+      - targets: ['PLACEHOLDER_PRIMARY_IP:9100']
+        labels:
+          instance: 'primary-machine'
+          environment: 'development'

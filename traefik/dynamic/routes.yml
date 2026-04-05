@@ -20,6 +20,12 @@ http:
       entryPoints: [websecure]
       service: story-api
 
+    grafana:
+      rule: "Host(`grafana.chillpickle.org`)"
+      entryPoints: [websecure]
+      service: grafana
+      # TODO: TLS route for monitoring stack — add Grafana to TLS options
+
     traefik-dashboard:
       rule: "Host(`traefik.tcom.chillpickle.org`)"
       entryPoints: [websecure]
@@ -47,3 +53,8 @@ http:
       loadBalancer:
         servers:
           - url: "http://host.docker.internal:8093"
+
+    grafana:
+      loadBalancer:
+        servers:
+          - url: "http://host.docker.internal:3001"

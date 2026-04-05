@@ -13,6 +13,7 @@ on:
       - "chillang/extension/**"
       - "story/backend/**"
       - "story/docker-compose.yml"
+      - "monitoring/**"
   pull_request:
     branches: [main]
     paths:
@@ -25,6 +26,7 @@ on:
       - "chillang/extension/**"
       - "story/backend/**"
       - "story/docker-compose.yml"
+      - "monitoring/**"
   workflow_dispatch:
     inputs:
       service:
@@ -39,6 +41,7 @@ on:
           - chillang-backend
           - chillang-extension
           - story-backend
+          - monitoring
 
 concurrency:
   group: deploy-${{ github.ref }}
@@ -58,6 +61,7 @@ jobs:
       chillang-backend: ${{ steps.filter.outputs.chillang-backend }}
       chillang-extension: ${{ steps.filter.outputs.chillang-extension }}
       story-backend: ${{ steps.filter.outputs.story-backend }}
+      monitoring: ${{ steps.filter.outputs.monitoring }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -79,6 +83,8 @@ jobs:
             story-backend:
               - "story/backend/**"
               - "story/docker-compose.yml"
+            monitoring:
+              - "monitoring/**"
 
   # ===========================================================
   # VALIDATE — runs on both PRs and pushes (no approval needed)
@@ -562,3 +568,33 @@ jobs:
 
       - name: Cleanup backup
         run: ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "rm -rf ~/story.bak"
+
+  # -----------------------------------------------------------
+  # Deploy monitoring stack (Prometheus + Grafana + Alertmanager)
+  # -----------------------------------------------------------
+  deploy-monitoring:
+    name: Deploy monitoring
+    needs: []
+    if: >
+      (needs.changes.outputs.monitoring == 'true' || github.event.inputs.service == 'monitoring' || github.event.inputs.service == 'all') &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Add VPS to known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Deploy monitoring stack
+        run: |
+          rsync -r monitoring/ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/monitoring/
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "cd ~/monitoring && docker compose up -d"
