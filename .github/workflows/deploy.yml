@@ -573,22 +573,3 @@ jobs:
           exit 1
 
       - name: Cleanup backup
-        run: ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "rm -rf ~/story.bak"
-
-  # -----------------------------------------------------------
-  # Deploy monitoring stack (Prometheus + Grafana + Alertmanager)
-  # -----------------------------------------------------------
-  deploy-monitoring:
-    name: Deploy monitoring
-    needs: []
-    if: >
-      (needs.changes.outputs.monitoring == 'true' || github.event.inputs.service == 'monitoring' || github.event.inputs.service == 'all') &&
-      (github.event_name == 'push' || github.event.inputs.service == 'monitoring' || github.event.inputs.service == 'all')
-    uses: ./.github/workflows/reusable/deploy-service.yml
-    with:
-      service_name: monitoring
-      service_path: monitoring/
-    secrets:
-      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-      SSH_HOST: ${{ secrets.SSH_HOST }}
-      SSH_USER: ${{ secrets.SSH_USER }}
