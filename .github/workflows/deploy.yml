@@ -237,6 +237,8 @@ jobs:
     needs: validate-traefik
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     environment: production
     steps:
       - uses: actions/checkout@v4
@@ -293,6 +295,8 @@ jobs:
     needs: validate-outline
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     environment: production
     steps:
       - uses: actions/checkout@v4
@@ -400,6 +404,8 @@ jobs:
     needs: build-chillang-backend
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     environment:
       name: production
       url: https://api.chillang.chillpickle.org
