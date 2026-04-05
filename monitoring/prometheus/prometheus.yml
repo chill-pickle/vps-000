@@ -17,17 +17,3 @@ scrape_configs:
         labels:
           instance: 'vps-000'
           environment: 'production'
-
-  - job_name: 'lacia-node'
-    static_configs:
-      - targets: ['192.168.0.100:9100']
-        labels:
-          instance: 'lacia-machine'
-          environment: 'development'
-
-  - job_name: 'primary-node'
-    static_configs:
-      - targets: ['PLACEHOLDER_PRIMARY_IP:9100']
-        labels:
-          instance: 'primary-machine'
-          environment: 'development'

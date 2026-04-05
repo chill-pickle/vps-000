@@ -12,7 +12,17 @@ on:
       - 'monitoring/**'
       - '.github/workflows/reusable/**'
 
+permissions:
+  contents: read
+
 jobs:
   deploy:
     if: github.event_name == 'push'
-    uses: ./.github/workflows/reusable/deploy-monitoring.yml
+    uses: ./.github/workflows/reusable/deploy-service.yml
+    with:
+      service_name: monitoring
+      service_path: monitoring/
+    secrets:
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+      SSH_USER: ${{ secrets.SSH_USER }}

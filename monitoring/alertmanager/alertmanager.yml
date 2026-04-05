@@ -15,8 +15,9 @@ route:
 receivers:
   - name: 'telegram'
     telegram_configs:
+      # Infastructure team Telegram group (chill-pickle infra)
       - bot_token: '${TELEGRAM_BOT_TOKEN}'
-        chat_id: -5034067622
+        chat_id: -5117715312
         parse_mode: 'HTML'
         message: |
           🚨 <b>{{ .GroupLabels.alertname }}</b>
