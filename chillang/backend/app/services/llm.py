@@ -3,7 +3,8 @@ import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
-import httpx
+from google import genai
+from google.genai import types
 from openai import AsyncOpenAI
 
 from app.config import settings
@@ -87,39 +88,49 @@ class OpenAIProvider(LLMProvider):
             return None
 
 
-class OllamaProvider(LLMProvider):
+class GeminiProvider(LLMProvider):
     def __init__(self):
-        self.base_url = settings.ollama_base_url
-        self.model = settings.ollama_model
+        self.client = genai.Client(api_key=settings.gemini_api_key)
+        self.model = settings.gemini_model
 
     async def generate_word_entry(self, text: str, is_phrase: bool) -> WordEntry | None:
         prompt = PHRASE_PROMPT if is_phrase else WORD_PROMPT
         try:
-            async with httpx.AsyncClient(timeout=settings.llm_timeout) as client:
-                response = await client.post(
-                    f"{self.base_url}/api/generate",
-                    json={
-                        "model": self.model,
-                        "system": SYSTEM_PROMPT,
-                        "prompt": prompt.format(text=text),
-                        "format": "json",
-                        "stream": False,
-                    },
-                )
-                response.raise_for_status()
-                data = json.loads(response.json()["response"])
-                return WordEntry(
-                    translation=data["translation"],
-                    meaning=data["meaning"],
-                    examples=data["examples"][:3],
-                    word_type=data.get("word_type") if not is_phrase else None,
-                )
+            response = await self.client.aio.models.generate_content(
+                model=self.model,
+                contents=prompt.format(text=text),
+                config=types.GenerateContentConfig(
+                    system_instruction=SYSTEM_PROMPT,
+                    response_mime_type="application/json",
+                    temperature=0.3,
+                ),
+            )
+            data = json.loads(response.text)
+            return WordEntry(
+                translation=data["translation"],
+                meaning=data["meaning"],
+                examples=data["examples"][:3],
+                word_type=data.get("word_type") if not is_phrase else None,
+            )
         except Exception:
-            logger.exception("Ollama generation failed for '%s'", text)
+            logger.exception("Gemini generation failed for '%s'", text)
             return None
 
 
+class FallbackProvider(LLMProvider):
+    """Tries the primary provider; falls back to secondary if it returns None."""
+
+    def __init__(self, primary: LLMProvider, fallback: LLMProvider):
+        self.primary = primary
+        self.fallback = fallback
+
+    async def generate_word_entry(self, text: str, is_phrase: bool) -> WordEntry | None:
+        result = await self.primary.generate_word_entry(text, is_phrase)
+        if result is None:
+            logger.warning("Primary provider failed for '%s', trying fallback", text)
+            result = await self.fallback.generate_word_entry(text, is_phrase)
+        return result
+
+
 def get_llm_provider() -> LLMProvider:
-    if settings.llm_provider == "ollama":
-        return OllamaProvider()
-    return OpenAIProvider()
+    return FallbackProvider(GeminiProvider(), OpenAIProvider())
