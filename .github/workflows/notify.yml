@@ -5,6 +5,9 @@ on:
     workflows: [Deploy, Security]
     types: [completed]
 
+permissions:
+  contents: read
+
 jobs:
   notify:
     name: Send Telegram notification
@@ -14,16 +17,23 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
+          WORKFLOW_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          WORKFLOW_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          WORKFLOW_SHA: ${{ github.event.workflow_run.head_sha }}
+          WORKFLOW_ACTOR: ${{ github.event.workflow_run.actor.login }}
+          WORKFLOW_URL: ${{ github.event.workflow_run.html_url }}
+          WORKFLOW_REPO: ${{ github.event.workflow_run.repository.full_name }}
+          WORKFLOW_COMMIT_MSG: ${{ github.event.workflow_run.head_commit.message }}
         run: |
-          WORKFLOW="${{ github.event.workflow_run.name }}"
-          CONCLUSION="${{ github.event.workflow_run.conclusion }}"
-          BRANCH="${{ github.event.workflow_run.head_branch }}"
-          SHA="${{ github.event.workflow_run.head_sha }}"
-          SHORT_SHA="${SHA:0:7}"
-          ACTOR="${{ github.event.workflow_run.actor.login }}"
-          RUN_URL="${{ github.event.workflow_run.html_url }}"
-          REPO="${{ github.event.workflow_run.repository.full_name }}"
-          COMMIT_MSG=$(echo "${{ github.event.workflow_run.head_commit.message }}" | head -1)
+          WORKFLOW="$WORKFLOW_NAME"
+          CONCLUSION="$WORKFLOW_CONCLUSION"
+          BRANCH="$WORKFLOW_BRANCH"
+          SHORT_SHA="${WORKFLOW_SHA:0:7}"
+          ACTOR="$WORKFLOW_ACTOR"
+          RUN_URL="$WORKFLOW_URL"
+          REPO="$WORKFLOW_REPO"
+          COMMIT_MSG=$(echo "$WORKFLOW_COMMIT_MSG" | head -1)
 
           if [ "$CONCLUSION" = "success" ]; then
             STATUS_ICON="✅"

@@ -1,0 +1,29 @@
+global:
+  resolve_timeout: 5m
+
+route:
+  receiver: 'telegram'
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 12h
+  routes:
+    - match:
+        severity: critical
+      receiver: 'telegram'
+      repeat_interval: 1h
+
+receivers:
+  - name: 'telegram'
+    telegram_configs:
+      # Infastructure team Telegram group (chill-pickle infra)
+      - bot_token: '${TELEGRAM_BOT_TOKEN}'
+        chat_id: -5117715312
+        parse_mode: 'HTML'
+        message: |
+          🚨 <b>{{ .GroupLabels.alertname }}</b>
+          Status: {{ .Status | toUpper }}
+          
+          {{ range .Alerts }}
+          • <b>{{ .Labels.instance }}</b>: {{ .Annotations.summary }}
+          {{ .Annotations.description }}
+          {{ end }}

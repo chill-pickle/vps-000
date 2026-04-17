@@ -13,6 +13,7 @@ on:
       - "chillang/extension/**"
       - "story/backend/**"
       - "story/docker-compose.yml"
+      - "monitoring/**"
   pull_request:
     branches: [main]
     paths:
@@ -25,6 +26,7 @@ on:
       - "chillang/extension/**"
       - "story/backend/**"
       - "story/docker-compose.yml"
+      - "monitoring/**"
   workflow_dispatch:
     inputs:
       service:
@@ -39,6 +41,7 @@ on:
           - chillang-backend
           - chillang-extension
           - story-backend
+          - monitoring
 
 concurrency:
   group: deploy-${{ github.ref }}
@@ -58,6 +61,7 @@ jobs:
       chillang-backend: ${{ steps.filter.outputs.chillang-backend }}
       chillang-extension: ${{ steps.filter.outputs.chillang-extension }}
       story-backend: ${{ steps.filter.outputs.story-backend }}
+      monitoring: ${{ steps.filter.outputs.monitoring }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -79,6 +83,8 @@ jobs:
             story-backend:
               - "story/backend/**"
               - "story/docker-compose.yml"
+            monitoring:
+              - "monitoring/**"
 
   # ===========================================================
   # VALIDATE — runs on both PRs and pushes (no approval needed)
@@ -231,6 +237,8 @@ jobs:
     needs: validate-traefik
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     environment: production
     steps:
       - uses: actions/checkout@v4
@@ -287,6 +295,8 @@ jobs:
     needs: validate-outline
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     environment: production
     steps:
       - uses: actions/checkout@v4
@@ -394,6 +404,8 @@ jobs:
     needs: build-chillang-backend
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     environment:
       name: production
       url: https://api.chillang.chillpickle.org
@@ -561,4 +573,3 @@ jobs:
           exit 1
 
       - name: Cleanup backup
-        run: ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "rm -rf ~/story.bak"

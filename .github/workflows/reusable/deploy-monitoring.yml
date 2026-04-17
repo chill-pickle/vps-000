@@ -1,0 +1,21 @@
+name: Reusable Deploy Monitoring
+
+on:
+  workflow_call:
+
+jobs:
+  deploy-monitoring:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+          ssh-key-scan: ${{ secrets.SSH_HOST }}
+
+      - name: Deploy monitoring
+        run: |
+          rsync -r monitoring/ chill@${{ secrets.SSH_HOST }}:~/monitoring/
+          ssh chill@${{ secrets.SSH_HOST }} "cd ~/monitoring && docker compose up -d"
