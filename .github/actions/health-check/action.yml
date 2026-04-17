@@ -1,0 +1,53 @@
+name: Health check
+description: Retry HTTP health check with rollback on failure
+
+inputs:
+  ssh_user:
+    description: SSH user
+    required: true
+  ssh_host:
+    description: SSH host
+    required: true
+  service_name:
+    description: Service directory name on the VPS (for rollback)
+    required: true
+  health_url:
+    description: Health check URL on the VPS (e.g. http://localhost:8091/health)
+    required: true
+  retries:
+    description: Number of retry attempts
+    required: false
+    default: "6"
+  interval:
+    description: Seconds between retries
+    required: false
+    default: "10"
+  initial_wait:
+    description: Seconds to wait before first attempt
+    required: false
+    default: "15"
+
+runs:
+  using: composite
+  steps:
+    - name: Health check with rollback
+      shell: bash
+      run: |
+        echo "Waiting ${{ inputs.initial_wait }}s for service to become ready..."
+        sleep ${{ inputs.initial_wait }}
+        for i in $(seq 1 ${{ inputs.retries }}); do
+          STATUS=$(ssh ${{ inputs.ssh_user }}@${{ inputs.ssh_host }} \
+            "curl -s -o /dev/null -w '%{http_code}' ${{ inputs.health_url }}" 2>/dev/null || echo "000")
+          echo "Attempt $i — HTTP $STATUS"
+          if [ "$STATUS" = "200" ]; then
+            echo "Health check passed."
+            exit 0
+          fi
+          sleep ${{ inputs.interval }}
+        done
+        echo "Health check failed — rolling back"
+        ssh ${{ inputs.ssh_user }}@${{ inputs.ssh_host }} bash -s << ENDSSH
+          rm -rf ~/${{ inputs.service_name }} && mv ~/${{ inputs.service_name }}.bak ~/${{ inputs.service_name }}
+          cd ~/${{ inputs.service_name }} && docker compose up -d
+        ENDSSH
+        exit 1
