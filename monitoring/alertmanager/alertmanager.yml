@@ -17,7 +17,7 @@ receivers:
     telegram_configs:
       # Infastructure team Telegram group (chill-pickle infra)
       - bot_token: '${TELEGRAM_BOT_TOKEN}'
-        chat_id: -5117715312
+        chat_id: ${TELEGRAM_ALERT_CHANNEL_ID}
         parse_mode: 'HTML'
         message: |
           🚨 <b>{{ .GroupLabels.alertname }}</b>

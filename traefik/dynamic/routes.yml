@@ -24,7 +24,6 @@ http:
       rule: "Host(`grafana.chillpickle.org`)"
       entryPoints: [websecure]
       service: grafana
-      # TODO: TLS route for monitoring stack — add Grafana to TLS options
 
     traefik-dashboard:
       rule: "Host(`traefik.tcom.chillpickle.org`)"
