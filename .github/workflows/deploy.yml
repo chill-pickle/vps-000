@@ -573,3 +573,4 @@ jobs:
           exit 1
 
       - name: Cleanup backup
+        run: ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "rm -rf ~/story.bak"
