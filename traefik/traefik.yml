@@ -20,6 +20,7 @@ entryPoints:
           - main: "outline.chillpickle.org"
           - main: "dash.chillpickle.org"
           - main: "story.chillpickle.org"
+          - main: "grafana.chillpickle.org"
           - main: "chillpickle.org"
             sans:
               - "*.chillang.chillpickle.org"

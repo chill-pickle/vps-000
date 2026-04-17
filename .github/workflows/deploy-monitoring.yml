@@ -5,24 +5,87 @@ on:
     branches: [main]
     paths:
       - 'monitoring/**'
-      - '.github/workflows/reusable/**'
   pull_request:
     branches: [main]
     paths:
       - 'monitoring/**'
-      - '.github/workflows/reusable/**'
 
 permissions:
   contents: read
 
 jobs:
+  validate:
+    name: Validate Monitoring
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install sops
+        run: |
+          curl -LO https://github.com/getsops/sops/releases/download/v3.9.4/sops-v3.9.4.linux.amd64
+          chmod +x sops-v3.9.4.linux.amd64 && sudo mv sops-v3.9.4.linux.amd64 /usr/local/bin/sops
+          sudo apt-get install -y age
+
+      - name: Decrypt secrets
+        env:
+          SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
+        run: sops -d --input-type dotenv --output-type dotenv monitoring/.env.enc > monitoring/.env
+
+      - name: Validate config
+        run: |
+          echo "Secrets decrypted successfully"
+          test -s monitoring/.env && echo "monitoring/.env is non-empty" || exit 1
+
   deploy:
+    name: Deploy Monitoring
+    needs: validate
     if: github.event_name == 'push'
-    uses: ./.github/workflows/reusable/deploy-service.yml
-    with:
-      service_name: monitoring
-      service_path: monitoring/
-    secrets:
-      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-      SSH_HOST: ${{ secrets.SSH_HOST }}
-      SSH_USER: ${{ secrets.SSH_USER }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install sops
+        run: |
+          curl -LO https://github.com/getsops/sops/releases/download/v3.9.4/sops-v3.9.4.linux.amd64
+          chmod +x sops-v3.9.4.linux.amd64 && sudo mv sops-v3.9.4.linux.amd64 /usr/local/bin/sops
+          sudo apt-get install -y age
+
+      - name: Decrypt secrets
+        env:
+          SOPS_AGE_KEY: ${{ secrets.SOPS_AGE_KEY }}
+        run: sops -d --input-type dotenv --output-type dotenv monitoring/.env.enc > monitoring/.env
+
+      - uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Add VPS to known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H "${{ secrets.SSH_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Backup current config
+        run: ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "cp -r ~/monitoring ~/monitoring.bak 2>/dev/null || true"
+
+      - name: Rsync to server
+        run: |
+          rsync -avz --delete \
+            --exclude='.env.enc' \
+            monitoring/ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/monitoring/
+
+      - name: Restart and verify
+        run: |
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} bash -s << 'ENDSSH'
+            cd ~/monitoring && docker compose up -d
+            sleep 10
+            if ! docker compose ps --format json | grep -q '"running"'; then
+              echo "DEPLOY FAILED — rolling back"
+              rm -rf ~/monitoring && mv ~/monitoring.bak ~/monitoring
+              cd ~/monitoring && docker compose up -d
+              exit 1
+            fi
+            rm -rf ~/monitoring.bak
+          ENDSSH

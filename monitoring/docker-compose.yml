@@ -24,6 +24,7 @@ services:
       - "9093:9093"
     volumes:
       - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml
+    env_file: .env
     restart: unless-stopped
 
   grafana:
@@ -34,8 +35,9 @@ services:
     volumes:
       - grafana_data:/var/lib/grafana
       - ./grafana/provisioning:/etc/grafana/provisioning
+    env_file: .env
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=${GF_PASSWORD:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GF_PASSWORD}
       - GF_SERVER_ROOT_URL=https://grafana.chillpickle.org
       - GF_SERVER_DOMAIN=grafana.chillpickle.org
     restart: unless-stopped
