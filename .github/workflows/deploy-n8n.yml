@@ -1,0 +1,26 @@
+name: Deploy n8n Workflow
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'n8n/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'n8n/**'
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    if: github.event_name == 'push'
+    uses: ./.github/workflows/reusable/deploy-service.yml
+    with:
+      service_name: n8n
+      service_path: n8n/
+    secrets:
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      SSH_HOST: ${{ secrets.SSH_HOST }}
+      SSH_USER: ${{ secrets.SSH_USER }}
