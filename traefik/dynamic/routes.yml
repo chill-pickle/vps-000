@@ -25,6 +25,11 @@ http:
       entryPoints: [websecure]
       service: grafana
 
+    n8n:
+      rule: "Host(`n8n.chillpickle.org`)"
+      entryPoints: [websecure]
+      service: n8n
+
     traefik-dashboard:
       rule: "Host(`traefik.tcom.chillpickle.org`)"
       entryPoints: [websecure]
@@ -57,3 +62,8 @@ http:
       loadBalancer:
         servers:
           - url: "http://host.docker.internal:3001"
+
+    n8n:
+      loadBalancer:
+        servers:
+          - url: "http://host.docker.internal:5678"
