@@ -21,6 +21,7 @@ entryPoints:
           - main: "dash.chillpickle.org"
           - main: "story.chillpickle.org"
           - main: "grafana.chillpickle.org"
+          - main: "n8n.chillpickle.org"
           - main: "chillpickle.org"
             sans:
               - "*.chillang.chillpickle.org"
