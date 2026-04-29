@@ -1,0 +1,26 @@
+name: Decrypt sops secrets
+description: Decrypt a .env.enc file into a plaintext .env file
+
+inputs:
+  enc_file:
+    description: Path to the encrypted file (e.g. traefik/.env.enc)
+    required: true
+  out_file:
+    description: Path to write the decrypted file (e.g. traefik/.env)
+    required: true
+  sops_age_key:
+    description: Age private key for decryption
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Decrypt secrets
+      shell: bash
+      env:
+        SOPS_AGE_KEY: ${{ inputs.sops_age_key }}
+      run: sops -d --input-type dotenv --output-type dotenv "${{ inputs.enc_file }}" > "${{ inputs.out_file }}"
+
+    - name: Validate decrypted file
+      shell: bash
+      run: test -s "${{ inputs.out_file }}" && echo "${{ inputs.out_file }} is non-empty" || exit 1

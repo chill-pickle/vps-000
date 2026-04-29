@@ -1,0 +1,75 @@
+name: Deploy service
+description: Backup, rsync, docker compose up, verify, rollback on failure
+
+inputs:
+  service_name:
+    description: Service directory name on the VPS (e.g. traefik)
+    required: true
+  service_path:
+    description: Local path to rsync (e.g. traefik/)
+    required: true
+  ssh_user:
+    description: SSH user
+    required: true
+  ssh_host:
+    description: SSH host
+    required: true
+  rsync_excludes:
+    description: Comma-separated list of rsync --exclude patterns
+    required: false
+    default: ".env.enc"
+  docker_compose_pull:
+    description: Run docker compose pull before up
+    required: false
+    default: "false"
+  docker_compose_args:
+    description: Extra args for docker compose up (default -d)
+    required: false
+    default: "-d"
+  sleep_seconds:
+    description: Seconds to wait before verifying containers are running
+    required: false
+    default: "10"
+
+runs:
+  using: composite
+  steps:
+    - name: Backup current config
+      shell: bash
+      run: |
+        ssh ${{ inputs.ssh_user }}@${{ inputs.ssh_host }} \
+          "cp -r ~/${{ inputs.service_name }} ~/${{ inputs.service_name }}.bak 2>/dev/null || true"
+
+    - name: Rsync to server
+      shell: bash
+      run: |
+        EXCLUDES=""
+        IFS=',' read -ra PARTS <<< "${{ inputs.rsync_excludes }}"
+        for part in "${PARTS[@]}"; do
+          [ -n "$part" ] && EXCLUDES="$EXCLUDES --exclude='${part}'"
+        done
+        eval rsync -avz --delete $EXCLUDES \
+          "${{ inputs.service_path }}" \
+          "${{ inputs.ssh_user }}@${{ inputs.ssh_host }}:~/${{ inputs.service_name }}/"
+
+    - name: Deploy and verify
+      shell: bash
+      env:
+        COMPOSE_PULL: ${{ inputs.docker_compose_pull }}
+        COMPOSE_ARGS: ${{ inputs.docker_compose_args }}
+        SLEEP: ${{ inputs.sleep_seconds }}
+        SERVICE: ${{ inputs.service_name }}
+      run: |
+        ssh ${{ inputs.ssh_user }}@${{ inputs.ssh_host }} bash -s << ENDSSH
+          cd ~/${SERVICE}
+          [ "${COMPOSE_PULL}" = "true" ] && docker compose pull
+          docker compose up ${COMPOSE_ARGS}
+          sleep ${SLEEP}
+          if ! docker compose ps --format json | grep -q '"running"'; then
+            echo "DEPLOY FAILED — rolling back"
+            rm -rf ~/${SERVICE} && mv ~/${SERVICE}.bak ~/${SERVICE}
+            cd ~/${SERVICE} && docker compose up ${COMPOSE_ARGS}
+            exit 1
+          fi
+          rm -rf ~/${SERVICE}.bak
+        ENDSSH
