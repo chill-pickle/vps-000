@@ -21,6 +21,12 @@ jobs:
     environment: production
     steps:
       - uses: actions/checkout@v4
+      - uses: ./.github/actions/sops-install
+      - uses: ./.github/actions/sops-decrypt
+        with:
+          enc_file: n8n/.env.enc
+          out_file: n8n/.env
+          sops_age_key: ${{ secrets.SOPS_AGE_KEY }}
       - uses: ./.github/actions/ssh-setup
         with:
           ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
