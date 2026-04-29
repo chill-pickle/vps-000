@@ -16,11 +16,18 @@ permissions:
 jobs:
   deploy:
     if: github.event_name == 'push'
-    uses: ./.github/workflows/reusable/deploy-service.yml
-    with:
-      service_name: n8n
-      service_path: n8n/
-    secrets:
-      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-      SSH_HOST: ${{ secrets.SSH_HOST }}
-      SSH_USER: ${{ secrets.SSH_USER }}
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/ssh-setup
+        with:
+          ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
+          ssh_host: ${{ secrets.SSH_HOST }}
+      - uses: ./.github/actions/deploy-service
+        with:
+          service_name: n8n
+          service_path: n8n/
+          ssh_user: ${{ secrets.SSH_USER }}
+          ssh_host: ${{ secrets.SSH_HOST }}
+          docker_compose_pull: "true"
