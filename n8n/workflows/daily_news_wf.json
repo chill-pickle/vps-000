@@ -6,18 +6,18 @@
                     "interval": [
                         {
                             "field": "cronExpression",
-                            "expression": "30 0 * * *"
+                            "expression": "0 4 * * *"
                         }
                     ]
                 }
             },
-            "id": "5d49e511-9c24-46b7-ad8b-717ed237b6c7",
+            "id": "8358a6e0-c3d2-4d74-8556-936b72afd2cb",
             "name": "Schedule Trigger",
             "type": "n8n-nodes-base.scheduleTrigger",
             "typeVersion": 1.1,
             "position": [
-                2272,
-                1152
+                12864,
+                6576
             ]
         },
         {
@@ -25,382 +25,222 @@
                 "url": "https://news.ycombinator.com/rss",
                 "options": {}
             },
-            "id": "caddcd31-368e-4248-b5f0-387c92e28756",
+            "id": "935bda9a-2918-4091-af34-f23875d86b7b",
             "name": "Hacker News RSS",
             "type": "n8n-nodes-base.rssFeedRead",
             "typeVersion": 1,
             "position": [
-                2512,
-                672
+                13104,
+                6096
             ],
-            "continueOnFail": true
+            "continueOnFail": true,
+            "onError": "continueErrorOutput"
         },
         {
             "parameters": {
                 "url": "https://vnexpress.net/rss/tin-moi-nhat.rss",
                 "options": {}
             },
-            "id": "785ae4a5-b662-4bcd-abae-079b059ed7ea",
+            "id": "0d7976b1-45eb-470f-b4d6-862919888c89",
             "name": "VNExpress RSS",
             "type": "n8n-nodes-base.rssFeedRead",
             "typeVersion": 1,
             "position": [
-                2512,
-                864
+                13104,
+                6288
             ],
-            "continueOnFail": true
+            "continueOnFail": true,
+            "onError": "continueErrorOutput"
         },
         {
             "parameters": {
                 "url": "https://techcrunch.com/feed/",
                 "options": {}
             },
-            "id": "ab61fc44-bce9-4101-b196-69970a0ec2cd",
+            "id": "25e5f113-2c63-4a64-af84-99164608db98",
             "name": "AI & Robotics News RSS",
             "type": "n8n-nodes-base.rssFeedRead",
             "typeVersion": 1,
             "position": [
-                2512,
-                1040
+                13104,
+                6464
             ],
-            "continueOnFail": true
+            "continueOnFail": true,
+            "onError": "continueErrorOutput"
         },
         {
             "parameters": {
-                "url": "=https://api.openweathermap.org/data/2.5/weather?q=Hanoi,VN&appid={{$env.OPENWEATHER_API_KEY}}&units=metric",
-                "options": {}
-            },
-            "id": "d40030de-5230-40ac-b9a6-895f10a67eae",
-            "name": "Hanoi Weather",
-            "type": "n8n-nodes-base.httpRequest",
-            "typeVersion": 4.1,
-            "position": [
-                2512,
-                1216
-            ],
-            "continueOnFail": true
-        },
-        {
-            "parameters": {
-                "method": "POST",
-                "url": "https://www.reddit.com/api/v1/access_token",
-                "sendHeaders": true,
-                "headerParameters": {
-                    "parameters": [
-                        {
-                            "name": "Authorization",
-                            "value": "=Basic {{ Buffer.from($env.REDDIT_CLIENT_ID + ':' + $env.REDDIT_CLIENT_SECRET).toString('base64') }}"
-                        },
-                        {
-                            "name": "User-Agent",
-                            "value": "n8n-daily-news-bot/1.0"
-                        }
-                    ]
+                "query": "devops kubernetes robotics LLM AI tools trending",
+                "numResults": 5,
+                "additionalFields": {
+                    "includeDomains": "twitter.com,x.com"
                 },
-                "sendBody": true,
-                "contentType": "form-urlencoded",
-                "bodyParameters": {
-                    "parameters": [
-                        {
-                            "name": "grant_type",
-                            "value": "client_credentials"
-                        }
-                    ]
-                },
-                "options": {}
+                "contentsOptions": {},
+                "requestOptions": {}
             },
-            "id": "86c8db27-5306-4d0e-a2c1-bda0d47897dc",
-            "name": "Reddit OAuth2 Token",
-            "type": "n8n-nodes-base.httpRequest",
-            "typeVersion": 4.1,
-            "position": [
-                2512,
-                1392
-            ],
-            "continueOnFail": true
-        },
-        {
-            "parameters": {
-                "url": "https://oauth.reddit.com/r/devops+kubernetes+MachineLearning+robotics+selfhosted/hot?limit=10",
-                "sendHeaders": true,
-                "headerParameters": {
-                    "parameters": [
-                        {
-                            "name": "Authorization",
-                            "value": "=Bearer {{ $('Reddit OAuth2 Token').first().json.access_token }}"
-                        },
-                        {
-                            "name": "User-Agent",
-                            "value": "n8n-daily-news-bot/1.0"
-                        }
-                    ]
-                },
-                "options": {}
-            },
-            "id": "3211227a-b627-40bb-a061-525a7f49ea13",
-            "name": "Reddit Fetch Posts",
-            "type": "n8n-nodes-base.httpRequest",
-            "typeVersion": 4.1,
-            "position": [
-                2752,
-                1392
-            ],
-            "continueOnFail": true
-        },
-        {
-            "parameters": {
-                "jsCode": "const data = $input.first().json;\nconst posts = (data?.data?.children || []).slice(0, 5);\nconst items = posts.map(post => ({\n  json: {\n    title: post.data.title,\n    link: `https://reddit.com${post.data.permalink}`,\n    score: post.data.score,\n    subreddit: post.data.subreddit\n  }\n}));\nreturn items.length ? items : [{ json: {} }];"
-            },
-            "id": "497df56a-21c0-4ab8-bfe7-828365db33c4",
-            "name": "Reddit Parse & Limit 5",
-            "type": "n8n-nodes-base.code",
-            "typeVersion": 2,
-            "position": [
-                2992,
-                1392
-            ]
-        },
-        {
-            "parameters": {
-                "method": "POST",
-                "url": "https://api.exa.ai/search",
-                "sendHeaders": true,
-                "headerParameters": {
-                    "parameters": [
-                        {
-                            "name": "x-api-key",
-                            "value": "={{ $env.EXA_API_KEY }}"
-                        },
-                        {
-                            "name": "Content-Type",
-                            "value": "application/json"
-                        }
-                    ]
-                },
-                "sendBody": true,
-                "contentType": "raw",
-                "rawContentType": "application/json",
-                "body": "={{ JSON.stringify({ query: 'devops kubernetes robotics LLM AI tools trending', numResults: 5, type: 'neural', includeDomains: ['twitter.com', 'x.com'], contents: { text: { maxCharacters: 200 } } }) }}",
-                "options": {}
-            },
-            "id": "0d31d966-4f5a-4488-ba01-216de416b91d",
+            "id": "b70d4a17-e503-4021-862f-4563d0c3fd12",
             "name": "X Search via Exa",
-            "type": "n8n-nodes-base.httpRequest",
-            "typeVersion": 4.1,
+            "type": "n8n-nodes-exa-official.exa",
+            "typeVersion": 1,
             "position": [
-                2512,
-                1584
+                13104,
+                6688
             ],
-            "continueOnFail": true
+            "credentials": {
+                "exaApi": {
+                    "id": "xzYYSVYXzfbWLOFN",
+                    "name": "Exa account"
+                }
+            },
+            "continueOnFail": true,
+            "onError": "continueErrorOutput"
         },
         {
             "parameters": {
                 "url": "https://feeds.arstechnica.com/arstechnica/technology-lab",
                 "options": {}
             },
-            "id": "80391236-753f-48f3-a0d9-8693ff2184fb",
+            "id": "e30787e9-6cc1-4f04-8482-b553e0e232ed",
             "name": "Ars Technica RSS",
             "type": "n8n-nodes-base.rssFeedRead",
             "typeVersion": 1,
             "position": [
-                2512,
-                1760
+                13104,
+                6912
             ],
-            "continueOnFail": true
+            "continueOnFail": true,
+            "onError": "continueErrorOutput"
         },
         {
             "parameters": {
-                "url": "https://ictnews.vn/rss/",
-                "options": {}
+                "numberInputs": 5
             },
-            "id": "90520a49-d951-43dd-b32a-1699edbded32",
-            "name": "ICTNews RSS",
-            "type": "n8n-nodes-base.rssFeedRead",
-            "typeVersion": 1,
-            "position": [
-                2512,
-                1936
-            ],
-            "continueOnFail": true
-        },
-        {
-            "parameters": {
-                "operation": "limit",
-                "maxItems": 5
-            },
-            "id": "ab4a83ac-1b0a-4b0e-8d49-7c9e2b8c9e94",
-            "name": "Limit HN to 5",
-            "type": "n8n-nodes-base.itemLists",
-            "typeVersion": 3.1,
-            "position": [
-                2752,
-                672
-            ]
-        },
-        {
-            "parameters": {
-                "operation": "limit",
-                "maxItems": 5
-            },
-            "id": "b55b814a-cac5-483a-acba-d27d3de40290",
-            "name": "Limit VNExpress to 5",
-            "type": "n8n-nodes-base.itemLists",
-            "typeVersion": 3.1,
-            "position": [
-                2752,
-                864
-            ]
-        },
-        {
-            "parameters": {
-                "operation": "limit",
-                "maxItems": 5
-            },
-            "id": "b2c45bff-e19d-46f0-b0b3-78b83da0541c",
-            "name": "Limit AI News to 5",
-            "type": "n8n-nodes-base.itemLists",
-            "typeVersion": 3.1,
-            "position": [
-                2752,
-                1040
-            ]
-        },
-        {
-            "parameters": {
-                "operation": "limit",
-                "maxItems": 5
-            },
-            "id": "58096a7d-11c1-48b6-b5c9-a607cb0eb849",
-            "name": "Limit Ars to 5",
-            "type": "n8n-nodes-base.itemLists",
-            "typeVersion": 3.1,
-            "position": [
-                2752,
-                1760
-            ]
-        },
-        {
-            "parameters": {
-                "operation": "limit",
-                "maxItems": 5
-            },
-            "id": "2ed080e0-c096-480e-92f3-6ffb4e6421cd",
-            "name": "Limit ICTNews to 5",
-            "type": "n8n-nodes-base.itemLists",
-            "typeVersion": 3.1,
-            "position": [
-                2752,
-                1936
-            ]
-        },
-        {
-            "parameters": {
-                "numberInputs": 8
-            },
-            "id": "82efb29b-3cef-4b77-8cc3-7d57f6f577ee",
+            "id": "6fb83791-3ca4-4ce0-a528-c4d714db04eb",
             "name": "Wait for All Sources",
             "type": "n8n-nodes-base.merge",
             "typeVersion": 3,
             "position": [
-                3200,
-                1152
+                13792,
+                6576
             ],
-            "notes": "Wait for ALL 8 branches to complete before running Aggregate.\nInput 1: HN | Input 2: VNE | Input 3: AI RSS | Input 4: Weather | Input 5: Reddit | Input 6: Exa | Input 7: Ars | Input 8: ICTNews"
+            "notes": "Wait for ALL 7 branches to complete before running Aggregate.\nInput 1: HN | Input 2: VNE | Input 3: AI RSS | Input 4: Reddit | Input 5: Exa | Input 6: Ars | Input 7: ICTNews"
         },
         {
             "parameters": {
-                "jsCode": "// Strip continueOnFail error items — they have no title field\nconst valid = (node) => $(node).all().filter(i => i.json.title);\n\nconst hnItems     = valid('Limit HN to 5');\nconst vneItems    = valid('Limit VNExpress to 5');\nconst aiItems     = valid('Limit AI News to 5');\nconst arsItems    = valid('Limit Ars to 5');\nconst ictItems    = valid('Limit ICTNews to 5');\nconst redditItems = valid('Reddit Parse & Limit 5');\nconst weather     = $('Hanoi Weather').first().json;\nconst xItems      = ($('X Search via Exa').first().json.results || []).slice(0, 5);\n\nconst fmtRss = (items) => items.length\n  ? items.map((item, i) => `${i+1}. ${item.json.title} — ${item.json.link}`).join('\\n')\n  : '(No data)';\n\nconst fmtReddit = (items) => items.length\n  ? items.map((item, i) => `${i+1}. [r/${item.json.subreddit}] ${item.json.title} (score: ${item.json.score}) — ${item.json.link}`).join('\\n')\n  : '(No data)';\n\nconst fmtExa = (items) => items.length\n  ? items.map((item, i) => `${i+1}. ${item.title} — ${item.url}\\n   ${(item.text || item.content || '').slice(0, 120)}...`).join('\\n')\n  : '(No data)';\n\nconst temp     = weather.main?.temp                ?? 'N/A';\nconst feels    = weather.main?.feels_like          ?? 'N/A';\nconst desc     = weather.weather?.[0]?.description ?? 'N/A';\nconst humidity = weather.main?.humidity            ?? 'N/A';\nconst wind     = weather.wind?.speed               ?? 'N/A';\nconst weatherText = `Hà Nội: ${desc}, Nhiệt độ: ${temp}°C (cảm giác như ${feels}°C), Độ ẩm: ${humidity}%, Gió: ${wind} m/s`;\n\nconst today = new Date().toLocaleDateString('vi-VN', {\n  weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',\n  timeZone: 'Asia/Ho_Chi_Minh'\n});\n\nconst combined =\n  `Ngày: ${today}\\n\\n` +\n  `=== CÔNG NGHỆ TOÀN CẦU (Hacker News) ===\\n${fmtRss(hnItems)}\\n\\n` +\n  `=== CÔNG NGHỆ TOÀN CẦU (Ars Technica) ===\\n${fmtRss(arsItems)}\\n\\n` +\n  `=== AI / ROBOTICS / DEVOPS (TechCrunch) ===\\n${fmtRss(aiItems)}\\n\\n` +\n  `=== CỘNG ĐỒNG REDDIT ===\\n${fmtReddit(redditItems)}\\n\\n` +\n  `=== X / TWITTER (Exa Neural Search) ===\\n${fmtExa(xItems)}\\n\\n` +\n  `=== TIN TRONG NƯỚC (VNExpress) ===\\n${fmtRss(vneItems)}\\n\\n` +\n  `=== TIN TRONG NƯỚC (ICTNews VN) ===\\n${fmtRss(ictItems)}\\n\\n` +\n  `=== THỜI TIẾT HÀ NỘI ===\\n${weatherText}`;\n\nreturn [{ json: { content: combined, date: today } }];"
+                "jsCode": "// Pull ALL items from each source — no limits, let AI curate\nconst getAll = (node) => {\n  try { return $(node).all(); } catch(e) { return []; }\n};\n\nconst fmtRss = (items) => items.length\n  ? items.map((item, i) => `${i+1}. ${item.json.title} — ${item.json.link || item.json.url || ''}`).join('\\n')\n  : '(No data)';\n\nconst fmtExa = (items) => {\n  // Exa can return results in different shapes\n  let list = [];\n  if (items.length && items[0]?.json?.results) {\n    list = items[0].json.results;\n  } else {\n    list = items.filter(i => i.json?.url || i.json?.title).map(i => i.json);\n  }\n  return list.length\n    ? list.map((item, i) => `${i+1}. ${item.title || '(no title)'} — ${item.url}\\n   ${(item.text || item.content || item.summary || '').slice(0, 150)}...`).join('\\n')\n    : '(No data)';\n};\n\nconst hnItems  = getAll('Hacker News RSS');\nconst vneItems = getAll('VNExpress RSS');\nconst aiItems  = getAll('AI & Robotics News RSS');\nconst arsItems = getAll('Ars Technica RSS');\nconst exaItems = getAll('X Search via Exa');\n\nconst today = new Date().toLocaleDateString('vi-VN', {\n  weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',\n  timeZone: 'Asia/Ho_Chi_Minh'\n});\n\nconst combined =\n  `Ngày: ${today}\\n\\n` +\n  `=== HACKER NEWS (${hnItems.length} items) ===\\n${fmtRss(hnItems)}\\n\\n` +\n  `=== ARS TECHNICA (${arsItems.length} items) ===\\n${fmtRss(arsItems)}\\n\\n` +\n  `=== AI & ROBOTICS / TECHCRUNCH (${aiItems.length} items) ===\\n${fmtRss(aiItems)}\\n\\n` +\n  `=== X / TWITTER via EXA (${exaItems.length} items) ===\\n${fmtExa(exaItems)}\\n\\n` +\n  `=== VNEXPRESS (${vneItems.length} items) ===\\n${fmtRss(vneItems)}`;\n\nreturn [{ json: { content: combined, date: today } }];"
             },
-            "id": "81a70143-2b19-49f0-9647-4c51cab609ce",
+            "id": "19cb50fe-d7e6-48b5-bf0f-1f581badce1e",
             "name": "Aggregate All Data",
             "type": "n8n-nodes-base.code",
             "typeVersion": 2,
             "position": [
-                3424,
-                1152
+                14016,
+                6576
             ]
         },
         {
             "parameters": {
-                "method": "POST",
-                "url": "https://openrouter.ai/api/v1/chat/completions",
-                "sendHeaders": true,
-                "headerParameters": {
-                    "parameters": [
+                "promptType": "define",
+                "text": "={{ $json.content }}",
+                "messages": {
+                    "messageValues": [
                         {
-                            "name": "Authorization",
-                            "value": "=Bearer {{ $env.OPENROUTER_API_KEY }}"
-                        },
-                        {
-                            "name": "Content-Type",
-                            "value": "application/json"
+                            "message": "Bạn là một AI curator tin tức kỹ thuật, đóng vai một kỹ sư senior người Việt có cái nhìn sâu về công nghệ và xu hướng toàn cầu.\n\nTừ danh sách tin tức thô dưới đây, hãy thực hiện 3 việc:\n\n## PHẦN 1 — CHỌN LỌC TIN ĐÁNG ĐỌC\nƯu tiên theo thứ tự:\n1. 🤖 AI / LLM / Machine Learning / Robotics\n2. ⚙️ DevOps / Kubernetes / Cloud / Platform Engineering\n3. 🇻🇳 Tin công nghệ & xã hội Việt Nam (startup, chính sách số, kinh tế, đời sống)\n4. 🌐 Công nghệ & sự kiện toàn cầu nổi bật\n\nBỎ QUA: quảng cáo, click-bait, nội dung không có giá trị thông tin.\n\n## PHẦN 2 — PHÂN TÍCH XU HƯỚNG\nSau phần tin tức, thêm một block phân tích ngắn về những trend đang nổi bật:\n- Xu hướng công nghệ toàn cầu đang diễn ra hôm nay là gì?\n- Việt Nam đang theo kịp hoặc bỏ lỡ xu hướng nào?\n- Điều gì đáng để một kỹ sư / tech professional Việt Nam chú ý?\n\n## PHẦN 3 — TÓM TẮT TOÀN CẢNH\nCuối cùng, viết 1 đoạn văn ngắn (~10 câu) bao quát toàn bộ nội dung hôm nay — bao gồm cả những tin đã bị bỏ qua trong lúc filter. Đây là cái nhìn tổng thể 360° về ngày hôm nay: thế giới đang nói về gì, Việt Nam đang nói về gì, và không khí chung của ngày hôm nay là như thế nào.\n\n---\nXuất ra HTML thuần (chỉ phần body, không có thẻ <html>/<head>/<body>).\n\nCấu trúc output:\n<h2>🤖 AI / Robotics / LLM</h2>\n<ul><li><a href='URL'>Tiêu đề</a> — tóm tắt 1 câu tiếng Việt.</li></ul>\n\n<h2>⚙️ DevOps / Cloud / Platform</h2>\n<ul>...</ul>\n\n<h2>🇻🇳 Việt Nam — Công nghệ & Đời sống</h2>\n<ul>...</ul>\n\n<h2>🌐 Thế giới — Sự kiện Nổi bật</h2>\n<ul>...</ul>\n\n<hr/>\n<h2>📈 Xu hướng & Nhận định hôm nay</h2>\n<p><strong>Toàn cầu:</strong> [2-3 câu về trend tech đang nổi]</p>\n<p><strong>Việt Nam:</strong> [2-3 câu về trend hoặc điểm đáng chú ý tại VN]</p>\n<p><strong>Đáng theo dõi:</strong> [1 điều một kỹ sư nên để mắt tới]</p>\n\n<hr/>\n<h2>🗞️ Tóm tắt Toàn cảnh</h2>\n<p>[Đoạn văn bao quát tất cả — kể cả những gì đã bị lọc bỏ — cho cái nhìn 360° về ngày hôm nay]</p>\n\nGiữ nguyên tiếng Anh cho: tên model AI, framework, công ty, các thuật ngữ."
                         }
                     ]
                 },
-                "sendBody": true,
-                "contentType": "raw",
-                "rawContentType": "application/json",
-                "body": "={{ JSON.stringify({ model: 'anthropic/claude-sonnet-4-20250514', messages: [{ role: 'system', content: 'Bạn là một trợ lý điềm tĩnh và tinh tế. Hãy tóm tắt danh sách tin tức dưới đây bằng tiếng Việt.\\nTrình bày dưới dạng các gạch đầu dòng ngắn gọn, súc tích.\\nChia thành đúng 4 phần với các tiêu đề Markdown sau:\\n\\n## 🌐 Công nghệ Toàn cầu\\n## 🤖 DevOps / AI / Robotics\\n## 🇻🇳 Tin trong nước\\n## 🌤️ Hà Nội hôm nay\\n\\nQuy tắc ngôn ngữ:\\n- Viết bằng tiếng Việt tự nhiên, dễ đọc\\n- Giữ nguyên tiếng Anh cho: tên công nghệ (AI, Kubernetes, DevOps, CI/CD, LLM, Docker, Helm...), tên công ty (Google, OpenAI, Meta...), tên sản phẩm, tên framework, và các thuật ngữ kỹ thuật chưa có từ tiếng Việt phổ biến\\n- Không dịch những từ mà khi dịch sẽ trở nên lạ hoặc khó hiểu\\n- Gộp các tin tương đồng từ Reddit và Twitter/X vào phần DevOps/AI/Robotics\\n- Loại bỏ các tweet/post quảng cáo hoặc không có giá trị thông tin\\n- Mỗi gạch đầu dòng tối đa 2 câu\\n- Kết thúc bằng một câu động lực ngắn bằng tiếng Việt' }, { role: 'user', content: $json.content }], temperature: 0.5, max_tokens: 2000 }) }}",
-                "options": {}
+                "batching": {}
             },
-            "id": "e8e98ed7-1ea0-4ccc-a9ac-166b8e41efea",
+            "id": "c2e8a446-4c7f-49a5-8543-abb6c3e4071f",
             "name": "AI Summarizer (OpenRouter)",
-            "type": "n8n-nodes-base.httpRequest",
-            "typeVersion": 4.1,
-            "continueOnFail": true,
+            "type": "@n8n/n8n-nodes-langchain.chainLlm",
+            "typeVersion": 1.9,
             "position": [
-                3632,
-                1152
-            ]
+                14224,
+                6576
+            ],
+            "continueOnFail": true
         },
         {
             "parameters": {
-                "jsCode": "const raw = $('AI Summarizer (OpenRouter)').first().json;\nconst summary = raw?.choices?.[0]?.message?.content || 'Không thể tạo bản tóm tắt.';\nconst date = $('Aggregate All Data').first().json.date;\nconst header = `📰 *Bản tin hằng ngày — ${date}*\\n${'─'.repeat(35)}\\n\\n`;\nconst footer = `\\n\\n${'─'.repeat(35)}\\n_Tự động bởi n8n · Mỗi ngày lúc 07:30 GMT+7_`;\nreturn [{ json: { message: header + summary + footer } }];"
-            },
-            "id": "aecf1f9e-b804-40b7-a39d-e42c618d35d6",
-            "name": "Format Telegram Message",
-            "type": "n8n-nodes-base.code",
-            "typeVersion": 2,
-            "position": [
-                3856,
-                1152
-            ]
-        },
-        {
-            "parameters": {
-                "chatId": "={{ $env.TELEGRAM_CHAT_ID }}",
-                "text": "={{ $json.message }}",
-                "additionalFields": {
-                    "parse_mode": "Markdown"
+                "model": "anthropic/claude-sonnet-4.6",
+                "options": {
+                    "maxTokens": 8000,
+                    "temperature": 0.5
                 }
             },
-            "id": "12c419eb-c330-4d45-8755-a617dea32cea",
-            "name": "Send to Telegram",
-            "type": "n8n-nodes-base.telegram",
-            "typeVersion": 1.2,
+            "id": "534b84a9-9d0b-445d-a0f0-0002c271599a",
+            "name": "OpenRouter Chat Model (Summarizer)",
+            "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+            "typeVersion": 1,
             "position": [
-                4080,
-                1056
+                14224,
+                6784
             ],
-            "webhookId": "0059a55e-066f-4239-b168-9e54dc42ef10"
+            "credentials": {
+                "openRouterApi": {
+                    "id": "81Dy2cUby8EE0Pkn",
+                    "name": "OpenRouter account"
+                }
+            }
         },
         {
             "parameters": {
-                "sendTo": "={{ $env.GMAIL_TO }}",
+                "sendTo": "qitpydev@gmail.com",
                 "subject": "=📰 Bản tin hằng ngày — {{ $('Aggregate All Data').first().json.date }}",
-                "emailType": "text",
-                "message": "={{ $('Format Telegram Message').first().json.message }}",
+                "message": "={{ '<h1>📰 Bản tin hằng ngày — ' + $('Aggregate All Data').first().json.date + '</h1>' + ($('AI Summarizer (OpenRouter)').first().json.text || '<p>Không thể tạo bản tóm tắt.</p>') }}",
                 "options": {}
             },
-            "id": "eaa5571e-2603-4928-b938-d00bf36453ba",
+            "id": "7ac4cc51-7a1d-43ae-b7e6-559df62a1870",
             "name": "Send to Gmail (Optional)",
             "type": "n8n-nodes-base.gmail",
             "typeVersion": 2.1,
             "position": [
-                4080,
-                1264
+                14672,
+                6576
             ],
-            "webhookId": "2b1ab7a0-61df-4bc3-a4d3-ad196b062c8a"
+            "webhookId": "2b1ab7a0-61df-4bc3-a4d3-ad196b062c8a",
+            "credentials": {
+                "gmailOAuth2": {
+                    "id": "yPt7cKZUQk0nbMWm",
+                    "name": "Gmail account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "numberInputs": 5
+            },
+            "type": "n8n-nodes-base.merge",
+            "typeVersion": 3.2,
+            "position": [
+                13792,
+                7040
+            ],
+            "id": "f8e374d2-9d2c-4d18-ae0b-c600627ef4e6",
+            "name": "Wait for all Failures"
+        },
+        {
+            "parameters": {
+                "chatId": "-5117715312",
+                "text": "🚨 Daily News Workflow Failure 🚨\n\nSome RSS sources or nodes failed to execute successfully. Please check your n8n dashboard for details.",
+                "additionalFields": {}
+            },
+            "type": "n8n-nodes-base.telegram",
+            "typeVersion": 1.2,
+            "position": [
+                14672,
+                7168
+            ],
+            "id": "e64b027c-5771-4d41-81c7-bd7880c3a605",
+            "name": "Send a text message",
+            "webhookId": "433d69d8-ea3f-4a53-a8ce-815cc06c8307",
+            "credentials": {
+                "telegramApi": {
+                    "id": "JOhVK6KgE9Q4rINV",
+                    "name": "Telegram account"
+                }
+            }
         }
     ],
     "connections": {
@@ -423,27 +263,12 @@
                         "index": 0
                     },
                     {
-                        "node": "Hanoi Weather",
-                        "type": "main",
-                        "index": 0
-                    },
-                    {
-                        "node": "Reddit OAuth2 Token",
-                        "type": "main",
-                        "index": 0
-                    },
-                    {
                         "node": "X Search via Exa",
                         "type": "main",
                         "index": 0
                     },
                     {
                         "node": "Ars Technica RSS",
-                        "type": "main",
-                        "index": 0
-                    },
-                    {
-                        "node": "ICTNews RSS",
                         "type": "main",
                         "index": 0
                     }
@@ -454,7 +279,14 @@
             "main": [
                 [
                     {
-                        "node": "Limit HN to 5",
+                        "node": "Wait for All Sources",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Wait for all Failures",
                         "type": "main",
                         "index": 0
                     }
@@ -465,9 +297,16 @@
             "main": [
                 [
                     {
-                        "node": "Limit VNExpress to 5",
+                        "node": "Wait for All Sources",
                         "type": "main",
-                        "index": 0
+                        "index": 1
+                    }
+                ],
+                [
+                    {
+                        "node": "Wait for all Failures",
+                        "type": "main",
+                        "index": 1
                     }
                 ]
             ]
@@ -476,53 +315,16 @@
             "main": [
                 [
                     {
-                        "node": "Limit AI News to 5",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "Hanoi Weather": {
-            "main": [
-                [
-                    {
                         "node": "Wait for All Sources",
                         "type": "main",
-                        "index": 3
+                        "index": 2
                     }
-                ]
-            ]
-        },
-        "Reddit OAuth2 Token": {
-            "main": [
+                ],
                 [
                     {
-                        "node": "Reddit Fetch Posts",
+                        "node": "Wait for all Failures",
                         "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "Reddit Fetch Posts": {
-            "main": [
-                [
-                    {
-                        "node": "Reddit Parse & Limit 5",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "Reddit Parse & Limit 5": {
-            "main": [
-                [
-                    {
-                        "node": "Wait for All Sources",
-                        "type": "main",
-                        "index": 4
+                        "index": 2
                     }
                 ]
             ]
@@ -533,7 +335,14 @@
                     {
                         "node": "Wait for All Sources",
                         "type": "main",
-                        "index": 5
+                        "index": 3
+                    }
+                ],
+                [
+                    {
+                        "node": "Wait for all Failures",
+                        "type": "main",
+                        "index": 3
                     }
                 ]
             ]
@@ -542,75 +351,16 @@
             "main": [
                 [
                     {
-                        "node": "Limit Ars to 5",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "ICTNews RSS": {
-            "main": [
-                [
-                    {
-                        "node": "Limit ICTNews to 5",
-                        "type": "main",
-                        "index": 0
-                    }
-                ]
-            ]
-        },
-        "Limit HN to 5": {
-            "main": [
-                [
-                    {
                         "node": "Wait for All Sources",
                         "type": "main",
-                        "index": 0
+                        "index": 4
                     }
-                ]
-            ]
-        },
-        "Limit VNExpress to 5": {
-            "main": [
+                ],
                 [
                     {
-                        "node": "Wait for All Sources",
+                        "node": "Wait for all Failures",
                         "type": "main",
-                        "index": 1
-                    }
-                ]
-            ]
-        },
-        "Limit AI News to 5": {
-            "main": [
-                [
-                    {
-                        "node": "Wait for All Sources",
-                        "type": "main",
-                        "index": 2
-                    }
-                ]
-            ]
-        },
-        "Limit Ars to 5": {
-            "main": [
-                [
-                    {
-                        "node": "Wait for All Sources",
-                        "type": "main",
-                        "index": 6
-                    }
-                ]
-            ]
-        },
-        "Limit ICTNews to 5": {
-            "main": [
-                [
-                    {
-                        "node": "Wait for All Sources",
-                        "type": "main",
-                        "index": 7
+                        "index": 4
                     }
                 ]
             ]
@@ -641,23 +391,29 @@
             "main": [
                 [
                     {
-                        "node": "Format Telegram Message",
+                        "node": "Send to Gmail (Optional)",
                         "type": "main",
                         "index": 0
                     }
                 ]
             ]
         },
-        "Format Telegram Message": {
+        "OpenRouter Chat Model (Summarizer)": {
+            "ai_languageModel": [
+                [
+                    {
+                        "node": "AI Summarizer (OpenRouter)",
+                        "type": "ai_languageModel",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Wait for all Failures": {
             "main": [
                 [
                     {
-                        "node": "Send to Telegram",
-                        "type": "main",
-                        "index": 0
-                    },
-                    {
-                        "node": "Send to Gmail (Optional)",
+                        "node": "Send a text message",
                         "type": "main",
                         "index": 0
                     }

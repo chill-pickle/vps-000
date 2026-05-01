@@ -13,6 +13,8 @@ services:
       - N8N_PROTOCOL=https
       - WEBHOOK_URL=https://n8n.chillpickle.org
       - N8N_EDITOR_BASE_URL=https://n8n.chillpickle.org
+      - GENERIC_TIMEZONE=Asia/Ho_Chi_Minh
+      - TZ=Asia/Ho_Chi_Minh
     restart: unless-stopped
 
 volumes:
