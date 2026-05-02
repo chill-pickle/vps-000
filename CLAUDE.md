@@ -17,7 +17,6 @@ Monorepo for the **chillpickle** VPS (<VPS_IP>). All services, infrastructure co
 ```
 Internet → Cloudflare DNS → Traefik v3.3 (:443, TLS termination)
                               ├─ api.chillang.chillpickle.org → host:8091 (ChilLang API)
-                              ├─ outline.chillpickle.org      → host:8089 (Outline wiki)
                               └─ traefik.tcom.chillpickle.org  → dashboard
 ```
 
@@ -27,7 +26,6 @@ Traefik uses **file-based routing** (no Docker socket). Services reached via `ho
 
 ```
 traefik/          → rsync to ~/traefik/ (reverse proxy config)
-outline/          → rsync to ~/outline/ (wiki docker-compose + env)
 chillang/
   ├── docker-compose.yml   → rsync to ~/chillang/ (production, uses GHCR image)
   ├── .env.enc             → decrypted + rsync to ~/chillang/.env
@@ -65,7 +63,6 @@ npm run dev      # watch mode
 ```bash
 # Edit an encrypted env file
 sops traefik/.env.enc
-sops outline/.env.enc
 sops chillang/.env.enc
 
 # Decrypt to stdout (for debugging)
@@ -81,7 +78,6 @@ Single workflow (`.github/workflows/deploy.yml`) with path-based detection:
 | Change in | Job | What happens |
 |-----------|-----|-------------|
 | `traefik/**` | deploy-traefik | sops decrypt → rsync → docker compose up → verify → rollback |
-| `outline/**` | deploy-outline | sops decrypt → rsync → docker compose pull+up → verify → rollback |
 | `chillang/backend/**` | deploy-chillang-backend | Docker build+push to GHCR → rsync compose+env → pull+up → health check → rollback |
 | `chillang/extension/**` | build-chillang-extension | npm build → upload artifact (no deploy) |
 

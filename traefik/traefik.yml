@@ -17,8 +17,6 @@ entryPoints:
       tls:
         certResolver: letsencrypt
         domains:
-          - main: "outline.chillpickle.org"
-          - main: "dash.chillpickle.org"
           - main: "story.chillpickle.org"
           - main: "grafana.chillpickle.org"
           - main: "n8n.chillpickle.org"

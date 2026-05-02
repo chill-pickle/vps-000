@@ -6,7 +6,7 @@
 graph TB
     subgraph Internet
         U[Users / Clients]
-        CF[Cloudflare DNS<br/>*.tcom.chillpickle.org<br/>outline.chillpickle.org]
+        CF[Cloudflare DNS<br/>*.tcom.chillpickle.org]
     end
 
     subgraph VPS ["VPS — <VPS_IP>"]
@@ -15,25 +15,15 @@ graph TB
             EP443[":443 HTTPS"]
             ACME[Let's Encrypt<br/>Certs]
         end
-
-        subgraph Outline ["Outline Stack"]
-            OL[Outline<br/>:8089 → :3000]
-            OLPG[(PostgreSQL)]
-            OLR[(Redis)]
-        end
     end
 
     U -->|DNS lookup| CF
     CF -->|A record| EP80
     CF -->|A record| EP443
     EP80 -->|301 redirect| EP443
-    EP443 -->|outline.*| OL
     EP443 -->|traefik.tcom| Traefik
 
     ACME -.->|DNS-01 challenge| CF
-
-    OL --- OLPG
-    OL --- OLR
 ```
 
 ## Request Flow
@@ -45,13 +35,13 @@ sequenceDiagram
     participant T as Traefik :443
     participant S as Backend Service
 
-    C->>CF: outline.chillpickle.org
+    C->>CF: api.chillang.chillpickle.org
     CF-->>C: <VPS_IP>
 
-    C->>T: HTTPS request (SNI: outline.chillpickle.org)
+    C->>T: HTTPS request (SNI: api.chillang.chillpickle.org)
     Note over T: TLS termination<br/>Let's Encrypt cert
     T->>T: Match Host() rule → route to service
-    T->>S: HTTP proxy to host.docker.internal:8089
+    T->>S: HTTP proxy to host.docker.internal:8091
     S-->>T: Response
     T-->>C: HTTPS response
 ```
@@ -60,8 +50,8 @@ sequenceDiagram
 
 | Service | URL | Internal Port | Docker Compose |
 |---------|-----|---------------|----------------|
-| Outline | https://outline.chillpickle.org | 8089 | `services/outline/` |
-| Traefik Dashboard | https://traefik.tcom.chillpickle.org | -- | `services/traefik/` |
+| ChilLang API | https://api.chillang.chillpickle.org | 8091 | `chillang/` |
+| Traefik Dashboard | https://traefik.tcom.chillpickle.org | -- | `traefik/` |
 
 ## Traefik Configuration
 
@@ -120,7 +110,7 @@ On the server, `acme/acme.json` (Let's Encrypt cert storage, chmod 600) is gener
 
 ## TLS / Certificates
 
-- **Certs**: Wildcard `*.tcom.chillpickle.org` + `tcom.chillpickle.org` + `outline.chillpickle.org`
+- **Certs**: Wildcard `*.tcom.chillpickle.org` + `tcom.chillpickle.org`
 - **Issuer**: Let's Encrypt (production)
 - **Challenge**: DNS-01 via Cloudflare API
 - **Auto-renewal**: Traefik renews ~30 days before expiry
@@ -135,7 +125,6 @@ On the server, `acme/acme.json` (Let's Encrypt cert storage, chmod 600) is gener
 |------|------|---------|---------|
 | A | `tcom.chillpickle.org` | <VPS_IP> | No |
 | A | `*.tcom.chillpickle.org` | <VPS_IP> | No |
-| A | `outline.chillpickle.org` | <VPS_IP> | No |
 
 DNS-only (grey cloud) — Traefik handles TLS termination, not Cloudflare.
 
@@ -147,8 +136,6 @@ DNS-only (grey cloud) — Traefik handles TLS termination, not Cloudflare.
 | 80 | Traefik HTTP (redirects to 443) |
 | 443 | Traefik HTTPS |
 
-Direct service ports (8089) are closed. All traffic goes through Traefik.
-
 ## Server Resources
 
 - **RAM**: [redacted]
@@ -157,19 +144,6 @@ Direct service ports (8089) are closed. All traffic goes through Traefik.
 - **OS**: Ubuntu (Debian-based)
 
 ## Docker Stacks
-
-```mermaid
-graph LR
-    subgraph Networks
-        TN[traefik_default]
-        ON[outline_default]
-    end
-
-    T[traefik] --- TN
-    OLS[outline + postgres + redis] --- ON
-
-    T -.->|host.docker.internal| OLS
-```
 
 Each stack has its own isolated Docker network. Traefik reaches services through `host.docker.internal` (mapped to the host's network via `extra_hosts`), not by joining their networks.
 
@@ -187,12 +161,10 @@ cd ~/traefik && docker compose logs -f traefik
 
 # Restart a stack
 cd ~/traefik && docker compose restart
-cd ~/outline && docker compose restart
 
 # Check resources
 free -h && docker stats --no-stream
 
 # Manual deploy from local machine
 ./scripts/deploy.sh traefik
-./scripts/deploy.sh outline
 ```
