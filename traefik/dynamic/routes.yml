@@ -1,19 +1,9 @@
 http:
   routers:
-    outline:
-      rule: "Host(`outline.chillpickle.org`)"
-      entryPoints: [websecure]
-      service: outline
-
     chillang-api:
       rule: "Host(`api.chillang.chillpickle.org`)"
       entryPoints: [websecure]
       service: chillang-api
-
-    dashy:
-      rule: "Host(`dash.chillpickle.org`)"
-      entryPoints: [websecure]
-      service: dashy
 
     story-api:
       rule: "Host(`story.chillpickle.org`)"
@@ -38,20 +28,10 @@ http:
         - dashboard-auth
 
   services:
-    outline:
-      loadBalancer:
-        servers:
-          - url: "http://host.docker.internal:8089"
-
     chillang-api:
       loadBalancer:
         servers:
           - url: "http://host.docker.internal:8091"
-
-    dashy:
-      loadBalancer:
-        servers:
-          - url: "http://host.docker.internal:8092"
 
     story-api:
       loadBalancer:

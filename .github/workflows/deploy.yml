@@ -5,8 +5,6 @@ on:
     branches: [main]
     paths:
       - "traefik/**"
-      - "outline/**"
-      - "dashy/**"
       - "chillang/backend/**"
       - "chillang/docker-compose.yml"
       - "chillang/.env.enc"
@@ -18,8 +16,6 @@ on:
     branches: [main]
     paths:
       - "traefik/**"
-      - "outline/**"
-      - "dashy/**"
       - "chillang/backend/**"
       - "chillang/docker-compose.yml"
       - "chillang/.env.enc"
@@ -36,8 +32,6 @@ on:
         options:
           - all
           - traefik
-          - dashy
-          - outline
           - chillang-backend
           - chillang-extension
           - story-backend
@@ -56,8 +50,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       traefik: ${{ steps.filter.outputs.traefik }}
-      outline: ${{ steps.filter.outputs.outline }}
-      dashy: ${{ steps.filter.outputs.dashy }}
       chillang-backend: ${{ steps.filter.outputs.chillang-backend }}
       chillang-extension: ${{ steps.filter.outputs.chillang-extension }}
       story-backend: ${{ steps.filter.outputs.story-backend }}
@@ -70,10 +62,6 @@ jobs:
           filters: |
             traefik:
               - "traefik/**"
-            outline:
-              - "outline/**"
-            dashy:
-              - "dashy/**"
             chillang-backend:
               - "chillang/backend/**"
               - "chillang/docker-compose.yml"
@@ -107,25 +95,6 @@ jobs:
         with:
           enc_file: traefik/.env.enc
           out_file: traefik/.env
-          sops_age_key: ${{ secrets.SOPS_AGE_KEY }}
-
-  validate-outline:
-    name: Validate Outline
-    needs: changes
-    if: >
-      needs.changes.outputs.outline == 'true' ||
-      github.event.inputs.service == 'outline' ||
-      github.event.inputs.service == 'all'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/sops-install
-      - uses: ./.github/actions/sops-decrypt
-        with:
-          enc_file: outline/.env.enc
-          out_file: outline/.env
           sops_age_key: ${{ secrets.SOPS_AGE_KEY }}
 
   # ===========================================================
@@ -247,61 +216,6 @@ jobs:
           rsync_excludes: "acme/,.env.enc"
           docker_compose_args: "-d --force-recreate"
           sleep_seconds: "5"
-
-  deploy-outline:
-    name: Deploy Outline
-    needs: validate-outline
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    environment: production
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/sops-install
-      - uses: ./.github/actions/sops-decrypt
-        with:
-          enc_file: outline/.env.enc
-          out_file: outline/.env
-          sops_age_key: ${{ secrets.SOPS_AGE_KEY }}
-      - uses: ./.github/actions/ssh-setup
-        with:
-          ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
-          ssh_host: ${{ secrets.SSH_HOST }}
-      - uses: ./.github/actions/deploy-service
-        with:
-          service_name: outline
-          service_path: outline/
-          ssh_user: ${{ secrets.SSH_USER }}
-          ssh_host: ${{ secrets.SSH_HOST }}
-          rsync_excludes: "data/,.env.enc"
-          docker_compose_pull: "true"
-          sleep_seconds: "15"
-
-  deploy-dashy:
-    name: Deploy Dashy
-    needs: changes
-    if: >
-      (needs.changes.outputs.dashy == 'true' || github.event.inputs.service == 'dashy' || github.event.inputs.service == 'all') &&
-      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    environment: production
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/ssh-setup
-        with:
-          ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
-          ssh_host: ${{ secrets.SSH_HOST }}
-      - uses: ./.github/actions/deploy-service
-        with:
-          service_name: dashy
-          service_path: dashy/
-          ssh_user: ${{ secrets.SSH_USER }}
-          ssh_host: ${{ secrets.SSH_HOST }}
-          rsync_excludes: ""
-          docker_compose_pull: "true"
 
   deploy-chillang-backend:
     name: Deploy ChilLang backend
