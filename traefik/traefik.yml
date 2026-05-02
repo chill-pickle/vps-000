@@ -17,7 +17,7 @@ entryPoints:
       tls:
         certResolver: letsencrypt
         domains:
-          - main: "story.chillpickle.org"
+          - main: "stories.chillpickle.org"
           - main: "grafana.chillpickle.org"
           - main: "n8n.chillpickle.org"
           - main: "chillpickle.org"

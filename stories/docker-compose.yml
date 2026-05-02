@@ -1,12 +1,12 @@
 services:
-  story-api:
-    image: ghcr.io/chill-pickle/story-api:latest
-    container_name: story_api
+  stories-api:
+    image: ghcr.io/chill-pickle/stories-api:latest
+    container_name: stories_api
     restart: unless-stopped
     ports:
       - "8093:8093"
     volumes:
-      - story_data:/app/data
+      - stories_data:/app/data
     logging:
       driver: json-file
       options:
@@ -14,4 +14,4 @@ services:
         max-file: "3"
 
 volumes:
-  story_data:
+  stories_data:
