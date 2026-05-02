@@ -5,10 +5,10 @@ http:
       entryPoints: [websecure]
       service: chillang-api
 
-    story-api:
-      rule: "Host(`story.chillpickle.org`)"
+    stories-api:
+      rule: "Host(`stories.chillpickle.org`)"
       entryPoints: [websecure]
-      service: story-api
+      service: stories-api
 
     grafana:
       rule: "Host(`grafana.chillpickle.org`)"
@@ -33,7 +33,7 @@ http:
         servers:
           - url: "http://host.docker.internal:8091"
 
-    story-api:
+    stories-api:
       loadBalancer:
         servers:
           - url: "http://host.docker.internal:8093"

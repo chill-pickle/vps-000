@@ -9,8 +9,8 @@ on:
       - "chillang/docker-compose.yml"
       - "chillang/.env.enc"
       - "chillang/extension/**"
-      - "story/backend/**"
-      - "story/docker-compose.yml"
+      - "stories/backend/**"
+      - "stories/docker-compose.yml"
       - "monitoring/**"
   pull_request:
     branches: [main]
@@ -20,8 +20,8 @@ on:
       - "chillang/docker-compose.yml"
       - "chillang/.env.enc"
       - "chillang/extension/**"
-      - "story/backend/**"
-      - "story/docker-compose.yml"
+      - "stories/backend/**"
+      - "stories/docker-compose.yml"
       - "monitoring/**"
   workflow_dispatch:
     inputs:
@@ -34,7 +34,7 @@ on:
           - traefik
           - chillang-backend
           - chillang-extension
-          - story-backend
+          - stories-backend
           - monitoring
 
 concurrency:
@@ -52,7 +52,7 @@ jobs:
       traefik: ${{ steps.filter.outputs.traefik }}
       chillang-backend: ${{ steps.filter.outputs.chillang-backend }}
       chillang-extension: ${{ steps.filter.outputs.chillang-extension }}
-      story-backend: ${{ steps.filter.outputs.story-backend }}
+      stories-backend: ${{ steps.filter.outputs.stories-backend }}
       monitoring: ${{ steps.filter.outputs.monitoring }}
     steps:
       - uses: actions/checkout@v4
@@ -68,9 +68,9 @@ jobs:
               - "chillang/.env.enc"
             chillang-extension:
               - "chillang/extension/**"
-            story-backend:
-              - "story/backend/**"
-              - "story/docker-compose.yml"
+            stories-backend:
+              - "stories/backend/**"
+              - "stories/docker-compose.yml"
             monitoring:
               - "monitoring/**"
 
@@ -157,12 +157,12 @@ jobs:
           retention-days: 30
           if-no-files-found: error
 
-  build-story-backend:
-    name: Build Story backend
+  build-stories-backend:
+    name: Build Stories backend
     needs: changes
     if: >
-      needs.changes.outputs.story-backend == 'true' ||
-      github.event.inputs.service == 'story-backend' ||
+      needs.changes.outputs.stories-backend == 'true' ||
+      github.event.inputs.service == 'stories-backend' ||
       github.event.inputs.service == 'all'
     runs-on: ubuntu-latest
     permissions:
@@ -177,11 +177,11 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - uses: docker/build-push-action@v6
         with:
-          context: story/backend
+          context: stories/backend
           push: true
           tags: |
-            ghcr.io/chill-pickle/story-api:${{ github.sha }}
-            ${{ github.event_name != 'pull_request' && 'ghcr.io/chill-pickle/story-api:latest' || '' }}
+            ghcr.io/chill-pickle/stories-api:${{ github.sha }}
+            ${{ github.event_name != 'pull_request' && 'ghcr.io/chill-pickle/stories-api:latest' || '' }}
 
   # ===========================================================
   # DEPLOY — only on push to main
@@ -262,16 +262,16 @@ jobs:
       - name: Cleanup backup
         run: ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "rm -rf ~/chillang.bak"
 
-  deploy-story-backend:
-    name: Deploy Story backend
-    needs: build-story-backend
+  deploy-stories-backend:
+    name: Deploy Stories backend
+    needs: build-stories-backend
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
       contents: read
     environment:
       name: production
-      url: https://story.chillpickle.org
+      url: https://stories.chillpickle.org
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/ssh-setup
@@ -279,23 +279,23 @@ jobs:
           ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
           ssh_host: ${{ secrets.SSH_HOST }}
       - name: Backup current config
-        run: ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "cp -r ~/story ~/story.bak 2>/dev/null || true"
+        run: ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "cp -r ~/stories ~/stories.bak 2>/dev/null || true"
       - name: Deploy compose to server
         run: |
           rsync -avz \
-            story/docker-compose.yml \
-            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/story/
+            stories/docker-compose.yml \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:~/stories/
       - name: Pull image and restart
         run: |
           ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} bash -s << 'ENDSSH'
             docker logout ghcr.io 2>/dev/null || true
-            cd ~/story && docker compose pull && docker compose up -d
+            cd ~/stories && docker compose pull && docker compose up -d
           ENDSSH
       - uses: ./.github/actions/health-check
         with:
           ssh_user: ${{ secrets.SSH_USER }}
           ssh_host: ${{ secrets.SSH_HOST }}
-          service_name: story
+          service_name: stories
           health_url: http://localhost:8093/health
       - name: Cleanup backup
-        run: ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "rm -rf ~/story.bak"
+        run: ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} "rm -rf ~/stories.bak"
